@@ -37,6 +37,8 @@ typedef enum {
 	BLC_DLYR,
 	BLC_ATTL,
 	BLC_ATTR,
+	BLC_MTRL,
+	BLC_MTRR,
 	BLC_INL,
 	BLC_INR,
 	BLC_OUTL,
@@ -47,6 +49,7 @@ typedef struct {
 	float* balance;
 	float* unitygain;
 	float* atten[CHANNELS];
+	float* meter[CHANNELS];
 	float* delay[CHANNELS];
 	float* input[CHANNELS];
 	float* output[CHANNELS];
@@ -156,6 +159,15 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	process_channel(self, gain_left,  0, n_samples);
 	process_channel(self, gain_right, 1, n_samples);
+
+	int c, i;
+	for (c=0; c < CHANNELS; ++c) {
+		float sig_max = 0;
+		for (i=0; i < n_samples; ++i) {
+			sig_max = MAX(sig_max, self->output[c][i]);
+		}
+		*(self->meter[c]) = gain_to_db(sig_max);
+	}
 }
 
 static LV2_Handle
@@ -197,6 +209,12 @@ connect_port(LV2_Handle instance,
 		break;
 	case BLC_ATTR:
 		self->atten[1] = data;
+		break;
+	case BLC_MTRL:
+		self->meter[0] = data;
+		break;
+	case BLC_MTRR:
+		self->meter[1] = data;
 		break;
 	case BLC_DLYL:
 		self->delay[0] = data;

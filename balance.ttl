@@ -76,30 +76,48 @@
 		lv2:maximum 6.0 ;
 		units:unit units:db ;
 	] , [
+		a lv2:OutputPort,
+			lv2:ControlPort ;
+		lv2:index 6 ;
+		lv2:symbol "meterLeft" ;
+		lv2:name "Meter Left [dB]" ;
+		lv2:minimum -50.0 ;
+		lv2:maximum 0.0 ;
+		units:unit units:db;
+	] , [
+		a lv2:OutputPort,
+			lv2:ControlPort ;
+		lv2:index 7 ;
+		lv2:symbol "meterRight" ;
+		lv2:name "Meter Right [dB]" ;
+		lv2:minimum -50.0 ;
+		lv2:maximum 0.0 ;
+		units:unit units:db ;
+	] , [
 		a lv2:AudioPort ,
 			lv2:InputPort ;
-		lv2:index 6 ;
+		lv2:index 8 ;
 		lv2:symbol "in_left" ;
 		lv2:name "In Left" ;
 		lv2:designation pg:left ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:InputPort ;
-		lv2:index 7 ;
+		lv2:index 9 ;
 		lv2:symbol "in_right" ;
 		lv2:name "In Right" ;
 		lv2:designation pg:right ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:OutputPort ;
-		lv2:index 8 ;
+		lv2:index 10 ;
 		lv2:symbol "out_left" ;
 		lv2:name "Out Left" ;
 		lv2:designation pg:left ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:OutputPort ;
-		lv2:index 9 ;
+		lv2:index 11 ;
 		lv2:symbol "out_right" ;
 		lv2:name "Out Right" ;
 		lv2:designation pg:right ;
