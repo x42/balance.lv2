@@ -31,19 +31,21 @@
 #define GAIN_SMOOTH_LEN (64)
 
 typedef enum {
-	BLC_BALANCE  = 0,
-	BLC_DLYL     = 1,
-	BLC_DLYR     = 2,
-	BLC_ATTL     = 3,
-	BLC_ATTR     = 4,
-	BLC_INL      = 5,
-	BLC_INR      = 6,
-	BLC_OUTL     = 7,
-	BLC_OUTR     = 8
+	BLC_BALANCE   = 0,
+	BLC_UNIYGAIN,
+	BLC_DLYL,
+	BLC_DLYR,
+	BLC_ATTL,
+	BLC_ATTR,
+	BLC_INL,
+	BLC_INR,
+	BLC_OUTL,
+	BLC_OUTR
 } PortIndex;
 
 typedef struct {
 	float* balance;
+	float* unitygain;
 	float* atten[CHANNELS];
 	float* delay[CHANNELS];
 	float* input[CHANNELS];
@@ -142,6 +144,12 @@ run(LV2_Handle instance, uint32_t n_samples)
 		gain_left = 1.0 - RAIL(balance, 0.0, 1.0);
 	}
 
+	if (*self->unitygain) {
+		double gaindiff = (gain_left - gain_right);
+		gain_left = 1.0 + gaindiff;
+		gain_right = 1.0 - gaindiff;
+	}
+
 	/* report attenuation to UI */
 	*(self->atten[0]) = gain_to_db(gain_left);
 	*(self->atten[1]) = gain_to_db(gain_right);
@@ -180,6 +188,9 @@ connect_port(LV2_Handle instance,
 	switch ((PortIndex)port) {
 	case BLC_BALANCE:
 		self->balance = data;
+		break;
+	case BLC_UNIYGAIN:
+		self->unitygain = data;
 		break;
 	case BLC_ATTL:
 		self->atten[0] = data;
