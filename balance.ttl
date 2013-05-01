@@ -94,7 +94,7 @@
 			rdfs:label "L->L, L->R" ;
 			rdf:value 1
 		] , [
-			rdfs:label "R->R, R->R" ;
+			rdfs:label "R->R, R->L" ;
 			rdf:value 2
 		] , [
 			rdfs:label "L->R, R->L" ;

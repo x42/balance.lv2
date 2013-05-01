@@ -147,7 +147,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	int c, i;
 	BalanceControl* self = (BalanceControl*)instance;
 	const float balance = *self->balance;
-	const float trim = *self->trim;
+	const float trim = db_to_gain(*self->trim);
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
