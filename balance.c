@@ -131,6 +131,9 @@ static float gain_to_db(const float g) {
 	if (g <= 0) return -INFINITY;
 	return 20.0 * log10(g);
 }
+static float db_to_gain(const float d) {
+	return pow(10, d/20.0);
+}
 
 static void
 run(LV2_Handle instance, uint32_t n_samples)
@@ -140,17 +143,35 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
-	// TODO: 0..1 -> 0..1 log-scale mapping..
 	if (balance < 0) {
 		gain_right = 1.0 + RAIL(balance, -1.0, 0.0);
 	} else if (balance > 0) {
 		gain_left = 1.0 - RAIL(balance, 0.0, 1.0);
 	}
 
-	if (*self->unitygain) {
-		double gaindiff = (gain_left - gain_right);
-		gain_left = 1.0 + gaindiff;
-		gain_right = 1.0 - gaindiff;
+	switch ((int) *self->unitygain) {
+		case 1:
+			{
+				/* maintain amplitude sum */
+				const double gaindiff = (gain_left - gain_right);
+				gain_left = 1.0 + gaindiff;
+				gain_right = 1.0 - gaindiff;
+			}
+			break;
+		case 2:
+			{
+				/* equal power*/
+				if (balance < 0) {
+					gain_right = MAX(.5, gain_right);
+					gain_left = db_to_gain(-gain_to_db(gain_right));
+				} else {
+					gain_left = MAX(.5, gain_left);
+					gain_right = db_to_gain(-gain_to_db(gain_left));
+				}
+			}
+		case 0:
+			/* 'tradidional' balance */
+			break;
 	}
 
 	/* report attenuation to UI */

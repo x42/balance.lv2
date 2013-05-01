@@ -32,11 +32,21 @@
 			lv2:ControlPort ;
 		lv2:index 1 ;
 		lv2:symbol "unitygain" ;
-		lv2:name "see-saw mode (unity gain)" ;
+		lv2:name "gain mode" ;
 		lv2:default 0 ;
 		lv2:minimum 0 ;
-		lv2:maximum 1;
-		lv2:portProperty lv2:integer, lv2:toggled;
+		lv2:maximum 2;
+		lv2:portProperty lv2:enumeration;
+		lv2:scalePoint [
+			rdfs:label "balance" ;
+			rdf:value 0
+		] , [
+			rdfs:label "unity gain - equal amplitude" ;
+			rdf:value 1
+		] , [
+			rdfs:label "seesaw - equal power" ;
+			rdf:value 2
+		]
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
