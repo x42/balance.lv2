@@ -22,6 +22,16 @@
 		a lv2:InputPort ,
 			lv2:ControlPort ;
 		lv2:index 0 ;
+		lv2:symbol "trim" ;
+		lv2:name "trim";
+		lv2:default 0.0 ;
+		lv2:minimum -20.0 ;
+		lv2:maximum 20.0 ;
+		units:unit units:db;
+	] , [
+		a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 1 ;
 		lv2:symbol "balance" ;
 		lv2:name "Balance L/R";
 		lv2:default 0.0 ;
@@ -30,7 +40,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 1 ;
+		lv2:index 2 ;
 		lv2:symbol "unitygain" ;
 		lv2:name "gain mode" ;
 		lv2:default 0 ;
@@ -50,7 +60,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 2 ;
+		lv2:index 3 ;
 		lv2:symbol "delayLeft" ;
 		lv2:name "Delay Left [samples]";
 		lv2:default 0 ;
@@ -60,7 +70,7 @@
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
-		lv2:index 3 ;
+		lv2:index 4 ;
 		lv2:symbol "delayRight" ;
 		lv2:name "Delay Right [samples]";
 		lv2:default 0 ;
@@ -68,66 +78,92 @@
 		lv2:maximum 2000 ;
 		lv2:portProperty lv2:integer;
 	] , [
+		a lv2:InputPort ,
+			lv2:ControlPort ;
+		lv2:index 5 ;
+		lv2:symbol "monoswap" ;
+		lv2:name "mono/swap" ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 4;
+		lv2:portProperty lv2:enumeration;
+		lv2:scalePoint [
+			rdfs:label "L->L, R->R" ;
+			rdf:value 0
+		] , [
+			rdfs:label "L->L, L->R" ;
+			rdf:value 1
+		] , [
+			rdfs:label "R->R, R->R" ;
+			rdf:value 2
+		] , [
+			rdfs:label "L->R, R->L" ;
+			rdf:value 3
+		] , [
+			rdfs:label "downmix to mono" ;
+			rdf:value 4
+		]
+	] , [
 		a lv2:OutputPort,
 			lv2:ControlPort ;
-		lv2:index 4 ;
-		lv2:symbol "gainLeft" ;
-		lv2:name "Attenuation Left [dB]" ;
+		lv2:index 6 ;
+		lv2:symbol "meterInLeft" ;
+		lv2:name "In Meter Left [dB]" ;
 		lv2:minimum -96.0 ;
 		lv2:maximum 6.0 ;
 		units:unit units:db;
 	] , [
 		a lv2:OutputPort,
 			lv2:ControlPort ;
-		lv2:index 5 ;
-		lv2:symbol "gainRight" ;
-		lv2:name "Attenuation Right [dB]" ;
+		lv2:index 7 ;
+		lv2:symbol "meterInRight" ;
+		lv2:name "In Meter Right [dB]" ;
 		lv2:minimum -96.0 ;
 		lv2:maximum 6.0 ;
 		units:unit units:db ;
 	] , [
 		a lv2:OutputPort,
 			lv2:ControlPort ;
-		lv2:index 6 ;
-		lv2:symbol "meterLeft" ;
-		lv2:name "Meter Left [dB]" ;
+		lv2:index 8 ;
+		lv2:symbol "meterOutLeft" ;
+		lv2:name "Out Meter Left [dB]" ;
 		lv2:minimum -50.0 ;
 		lv2:maximum 0.0 ;
 		units:unit units:db;
 	] , [
 		a lv2:OutputPort,
 			lv2:ControlPort ;
-		lv2:index 7 ;
-		lv2:symbol "meterRight" ;
-		lv2:name "Meter Right [dB]" ;
+		lv2:index 9 ;
+		lv2:symbol "meterOutRight" ;
+		lv2:name "Out Meter Right [dB]" ;
 		lv2:minimum -50.0 ;
 		lv2:maximum 0.0 ;
 		units:unit units:db ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:InputPort ;
-		lv2:index 8 ;
+		lv2:index 10 ;
 		lv2:symbol "in_left" ;
 		lv2:name "In Left" ;
 		lv2:designation pg:left ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:InputPort ;
-		lv2:index 9 ;
+		lv2:index 11 ;
 		lv2:symbol "in_right" ;
 		lv2:name "In Right" ;
 		lv2:designation pg:right ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:OutputPort ;
-		lv2:index 10 ;
+		lv2:index 12 ;
 		lv2:symbol "out_left" ;
 		lv2:name "Out Left" ;
 		lv2:designation pg:left ;
 	] , [
 		a lv2:AudioPort ,
 			lv2:OutputPort ;
-		lv2:index 11 ;
+		lv2:index 13 ;
 		lv2:symbol "out_right" ;
 		lv2:name "Out Right" ;
 		lv2:designation pg:right ;

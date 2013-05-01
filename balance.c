@@ -31,14 +31,16 @@
 #define GAIN_SMOOTH_LEN (64)
 
 typedef enum {
-	BLC_BALANCE   = 0,
+	BLC_TRIM   = 0,
+	BLC_BALANCE,
 	BLC_UNIYGAIN,
 	BLC_DLYL,
 	BLC_DLYR,
-	BLC_ATTL,
-	BLC_ATTR,
-	BLC_MTRL,
-	BLC_MTRR,
+	BLC_MONOIZE,
+	BLC_MTRIL,
+	BLC_MTRIR,
+	BLC_MTROL,
+	BLC_MTROR,
 	BLC_INL,
 	BLC_INR,
 	BLC_OUTL,
@@ -46,10 +48,12 @@ typedef enum {
 } PortIndex;
 
 typedef struct {
+	float* trim;
 	float* balance;
 	float* unitygain;
-	float* atten[CHANNELS];
-	float* meter[CHANNELS];
+	float* monomode;
+	float* meterin[CHANNELS];
+	float* meterout[CHANNELS];
 	float* delay[CHANNELS];
 	float* input[CHANNELS];
 	float* output[CHANNELS];
@@ -81,7 +85,9 @@ typedef struct {
 #define SMOOTHGAIN (amp + (target_amp - amp) * (float) MAX(pos, smooth_len) / (float)smooth_len)
 
 static void
-process_channel(BalanceControl *self, const float target_amp, const uint32_t chn, const uint32_t n_samples)
+process_channel(BalanceControl *self,
+		const float target_amp, const uint32_t chn,
+		const uint32_t n_samples)
 {
 	uint32_t pos = 0;
 	const float  delay = *(self->delay[chn]);
@@ -138,8 +144,10 @@ static float db_to_gain(const float d) {
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
+	int c, i;
 	BalanceControl* self = (BalanceControl*)instance;
 	const float balance = *self->balance;
+	const float trim = *self->trim;
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
@@ -174,20 +182,54 @@ run(LV2_Handle instance, uint32_t n_samples)
 			break;
 	}
 
+#if 0
 	/* report attenuation to UI */
 	*(self->atten[0]) = gain_to_db(gain_left);
 	*(self->atten[1]) = gain_to_db(gain_right);
+#endif
 
-	process_channel(self, gain_left,  0, n_samples);
-	process_channel(self, gain_right, 1, n_samples);
+	for (c=0; c < CHANNELS; ++c) {
+		float sig_max = 0;
+		for (i=0; i < n_samples; ++i) {
+			sig_max = MAX(sig_max, self->input[c][i]);
+		}
+		*(self->meterin[c]) = gain_to_db(sig_max);
+	}
 
-	int c, i;
+	process_channel(self, gain_left * trim,  0, n_samples);
+	process_channel(self, gain_right * trim, 1, n_samples);
+
 	for (c=0; c < CHANNELS; ++c) {
 		float sig_max = 0;
 		for (i=0; i < n_samples; ++i) {
 			sig_max = MAX(sig_max, self->output[c][i]);
 		}
-		*(self->meter[c]) = gain_to_db(sig_max);
+		*(self->meterout[c]) = gain_to_db(sig_max);
+	}
+
+	switch ((int) *self->monomode) {
+		case 1:
+			memcpy(self->output[1], self->output[0], sizeof(float) * n_samples);
+			break;
+		case 2:
+			memcpy(self->output[0], self->output[1], sizeof(float) * n_samples);
+			break;
+		case 3:
+			for (i=0; i < n_samples; ++i) {
+				const float mem = self->output[0][i];
+				self->output[0][i] = self->output[1][i];
+				self->output[1][i] = mem;
+			}
+			break;
+		case 4:
+			for (i=0; i < n_samples; ++i) {
+				const float mono = (self->output[0][i] + self->output[1][i]) / 2.0;
+				self->output[0][i] = self->output[1][i] = mono;
+			}
+			break;
+		default:
+		case 0:
+			break;
 	}
 }
 
@@ -219,23 +261,29 @@ connect_port(LV2_Handle instance,
 	BalanceControl* self = (BalanceControl*)instance;
 
 	switch ((PortIndex)port) {
+	case BLC_TRIM:
+		self->trim = data;
+		break;
 	case BLC_BALANCE:
 		self->balance = data;
 		break;
 	case BLC_UNIYGAIN:
 		self->unitygain = data;
 		break;
-	case BLC_ATTL:
-		self->atten[0] = data;
+	case BLC_MONOIZE:
+		self->monomode = data;
 		break;
-	case BLC_ATTR:
-		self->atten[1] = data;
+	case BLC_MTRIL:
+		self->meterin[0] = data;
 		break;
-	case BLC_MTRL:
-		self->meter[0] = data;
+	case BLC_MTRIR:
+		self->meterin[1] = data;
 		break;
-	case BLC_MTRR:
-		self->meter[1] = data;
+	case BLC_MTROL:
+		self->meterout[0] = data;
+		break;
+	case BLC_MTROR:
+		self->meterout[1] = data;
 		break;
 	case BLC_DLYL:
 		self->delay[0] = data;
