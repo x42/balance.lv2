@@ -27,8 +27,11 @@
 
 #define MAXDELAY (2001)
 #define CHANNELS (2)
-#define FADE_LEN (32)
-#define GAIN_SMOOTH_LEN (64)
+
+#define FADE_LEN (64)
+
+#define C_LEFT (0)
+#define C_RIGHT (1)
 
 typedef enum {
 	BLC_TRIM   = 0,
@@ -44,6 +47,7 @@ typedef enum {
 } PortIndex;
 
 typedef struct {
+	/* control ports */
 	float* trim;
 	float* balance;
 	float* unitygain;
@@ -52,6 +56,7 @@ typedef struct {
 	float* input[CHANNELS];
 	float* output[CHANNELS];
 
+	/* delay buffers */
 	float buffer[CHANNELS][MAXDELAY];
 
 	/* buffer offsets */
@@ -61,6 +66,7 @@ typedef struct {
 	/* current settings */
 	float c_amp[CHANNELS];
 	int   c_dly[CHANNELS];
+	int   c_monomode;
 } BalanceControl;
 
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
@@ -75,8 +81,7 @@ typedef struct {
 	self->r_ptr[CHN] = (self->r_ptr[CHN] + 1) % MAXDELAY; \
 	self->w_ptr[CHN] = (self->w_ptr[CHN] + 1) % MAXDELAY;
 
-// TODO optimize, use delta..
-#define SMOOTHGAIN (amp + (target_amp - amp) * (float) MAX(pos, smooth_len) / (float)smooth_len)
+#define SMOOTHGAIN (amp + (target_amp - amp) * (float) MIN(pos, fade_len) / (float)fade_len)
 
 static void
 process_channel(BalanceControl *self,
@@ -88,14 +93,13 @@ process_channel(BalanceControl *self,
 	const float* const input = self->input[chn];
 	float* const output = self->output[chn];
 	float* const buffer = self->buffer[chn];
+	const float amp = self->c_amp[chn];
 
 	// TODO bridge cycles if smoothing is longer than n_samples
-	const int smooth_len = (n_samples >= GAIN_SMOOTH_LEN) ? GAIN_SMOOTH_LEN : n_samples;
-	const float amp = self->c_amp[chn];
+	const uint32_t fade_len = (n_samples >= FADE_LEN) ? FADE_LEN : n_samples;
 
 	if (self->c_dly[chn] != rint(delay)) {
 		/* delay length changed */
-		const int fade_len = (n_samples >= FADE_LEN) ? FADE_LEN : n_samples;
 		const int r_ptr = self->r_ptr[chn];
 		const int w_ptr = self->w_ptr[chn];
 
@@ -129,17 +133,91 @@ process_channel(BalanceControl *self,
 		}
 	}
 
-	for (; pos < n_samples; pos++) {
-		DLYWITHGAIN(amp)
-		INCREMENT_PTRS(chn);
+	if (target_amp != self->c_amp[chn]) {
+		for (; pos < n_samples; pos++) {
+			DLYWITHGAIN(SMOOTHGAIN)
+			INCREMENT_PTRS(chn);
+		}
+	} else {
+		for (; pos < n_samples; pos++) {
+			DLYWITHGAIN(amp)
+			INCREMENT_PTRS(chn);
+		}
 	}
 	self->c_amp[chn] = target_amp;
+}
+
+static void
+channel_map(BalanceControl *self, int mode,
+		const uint32_t start, const uint32_t end)
+{
+	int i;
+	switch (mode) {
+		case 1:
+			for (i=start; i < end; ++i) {
+				self->output[C_RIGHT][i] = self->output[C_LEFT][i];
+			}
+			break;
+		case 2:
+			for (i=start; i < end; ++i) {
+				self->output[C_LEFT][i] = self->output[C_RIGHT][i];
+			}
+			break;
+		case 3:
+			for (i=start; i < end; ++i) {
+				const float mem = self->output[C_LEFT][i];
+				self->output[C_LEFT][i] = self->output[C_RIGHT][i];
+				self->output[C_RIGHT][i] = mem;
+			}
+			break;
+		case 4:
+			for (i=start; i < end; ++i) {
+				const float mono = (self->output[C_LEFT][i] + self->output[C_RIGHT][i]) / 2.0;
+				self->output[C_LEFT][i] = self->output[C_RIGHT][i] = mono;
+			}
+			break;
+		default:
+		case 0:
+			break;
+	}
+}
+
+static void
+channel_map_change(BalanceControl *self, int mode,
+		const uint32_t pos, float *out)
+{
+	switch (mode) {
+		case 1:
+			out[C_LEFT]  = self->output[C_LEFT][pos];
+			out[C_RIGHT] = self->output[C_LEFT][pos];
+			break;
+		case 2:
+			out[C_LEFT] = self->output[C_RIGHT][pos];
+			out[C_RIGHT] = self->output[C_RIGHT][pos];
+			break;
+		case 3:
+			out[C_LEFT] = self->output[C_RIGHT][pos];
+			out[C_RIGHT] = self->output[C_LEFT][pos];
+			break;
+		case 4:
+			{
+			const float mono = (self->output[C_LEFT][pos] + self->output[C_RIGHT][pos]) / 2.0;
+			out[C_LEFT] = out[C_RIGHT] = mono;
+			}
+			break;
+		default:
+		case 0:
+			out[C_LEFT] = self->output[C_LEFT][pos];
+			out[C_RIGHT] = self->output[C_RIGHT][pos];
+			break;
+	}
 }
 
 static float gain_to_db(const float g) {
 	if (g <= 0) return -INFINITY;
 	return 20.0 * log10(g);
 }
+
 static float db_to_gain(const float d) {
 	return pow(10, d/20.0);
 }
@@ -147,7 +225,6 @@ static float db_to_gain(const float d) {
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
-	int i;
 	BalanceControl* self = (BalanceControl*)instance;
 	const float balance = *self->balance;
 	const float trim = db_to_gain(*self->trim);
@@ -187,37 +264,33 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 #if 0
 	/* report attenuation to UI */
-	*(self->atten[0]) = gain_to_db(gain_left);
-	*(self->atten[1]) = gain_to_db(gain_right);
+	*(self->atten[C_LEFT]) = gain_to_db(gain_left);
+	*(self->atten[C_RIGHT]) = gain_to_db(gain_right);
 #endif
 
-	process_channel(self, gain_left * trim,  0, n_samples);
-	process_channel(self, gain_right * trim, 1, n_samples);
+	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
+	process_channel(self, gain_right * trim, C_RIGHT, n_samples);
 
-	switch ((int) *self->monomode) {
-		case 1:
-			memcpy(self->output[1], self->output[0], sizeof(float) * n_samples);
-			break;
-		case 2:
-			memcpy(self->output[0], self->output[1], sizeof(float) * n_samples);
-			break;
-		case 3:
-			for (i=0; i < n_samples; ++i) {
-				const float mem = self->output[0][i];
-				self->output[0][i] = self->output[1][i];
-				self->output[1][i] = mem;
-			}
-			break;
-		case 4:
-			for (i=0; i < n_samples; ++i) {
-				const float mono = (self->output[0][i] + self->output[1][i]) / 2.0;
-				self->output[0][i] = self->output[1][i] = mono;
-			}
-			break;
-		default:
-		case 0:
-			break;
+
+	/* swap/assign channels */
+	uint32_t pos = 0;
+
+	if (self->c_monomode != (int) *self->monomode) {
+		/* smooth change */
+		const uint32_t fade_len = (n_samples >= FADE_LEN) ? FADE_LEN : n_samples;
+		for (; pos < fade_len; pos++) {
+			const float gain = (float)pos / (float)fade_len;
+			float x1[CHANNELS], x2[CHANNELS];
+			channel_map_change(self, self->c_monomode, pos, x1);
+			channel_map_change(self, (int) *self->monomode, pos, x2);
+			self->output[C_LEFT][pos] = x1[C_LEFT] * (1.0 - gain) + x2[C_LEFT] * gain;
+			self->output[C_RIGHT][pos] = x1[C_RIGHT] * (1.0 - gain) + x2[C_RIGHT] * gain;
+		}
 	}
+
+	channel_map(self, (int) *self->monomode, pos, n_samples);
+	self->c_monomode = (int) *self->monomode;
+
 }
 
 static LV2_Handle
@@ -236,6 +309,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 		self->r_ptr[i] = self->w_ptr[i] = 0;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
 	}
+	self->c_monomode = 0;
 
 	return (LV2_Handle)self;
 }
@@ -261,22 +335,22 @@ connect_port(LV2_Handle instance,
 		self->monomode = data;
 		break;
 	case BLC_DLYL:
-		self->delay[0] = data;
+		self->delay[C_LEFT] = data;
 		break;
 	case BLC_DLYR:
-		self->delay[1] = data;
+		self->delay[C_RIGHT] = data;
 		break;
 	case BLC_INL:
-		self->input[0] = data;
+		self->input[C_LEFT] = data;
 		break;
 	case BLC_INR:
-		self->input[1] = data;
+		self->input[C_RIGHT] = data;
 		break;
 	case BLC_OUTL:
-		self->output[0] = data;
+		self->output[C_LEFT] = data;
 		break;
 	case BLC_OUTR:
-		self->output[1] = data;
+		self->output[C_RIGHT] = data;
 		break;
 	}
 }
