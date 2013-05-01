@@ -1,5 +1,5 @@
-balance.lv2 -- LV2 stereo balance
-=================================
+balance.lv2 - LV2 stereo balance
+================================
 
 balance.lv2 is an audio-plugin for stereo balance control with
 optional per channel delay.
