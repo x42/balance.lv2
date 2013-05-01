@@ -27,7 +27,7 @@
 
 #define MAXDELAY (2001)
 #define CHANNELS (2)
-#define FADE_LEN (16)
+#define FADE_LEN (32)
 #define GAIN_SMOOTH_LEN (64)
 
 typedef enum {
@@ -94,17 +94,25 @@ process_channel(BalanceControl *self,
 	const float amp = self->c_amp[chn];
 
 	if (self->c_dly[chn] != rint(delay)) {
-		// TODO x-fade instead of fade out/in
-		const int fade_len = (n_samples >= FADE_LEN) ? FADE_LEN : n_samples / 2;
+		/* delay length changed */
+		const int fade_len = (n_samples >= FADE_LEN) ? FADE_LEN : n_samples;
+		const int r_ptr = self->r_ptr[chn];
+		const int w_ptr = self->w_ptr[chn];
 
-		// fade out
+		/* fade out */
 		for (; pos < fade_len; pos++) {
 			const float gain = (float)(fade_len - pos) / (float)fade_len;
 			DLYWITHGAIN(gain * SMOOTHGAIN)
 			INCREMENT_PTRS(chn);
 		}
 
-		// update read pointer
+		/* restore pointers to beginning of fade. */
+		self->r_ptr[chn] = r_ptr;
+		self->w_ptr[chn] = w_ptr;
+		INCREMENT_PTRS(chn);
+		pos = 1;
+
+		/* update read pointer */
 		self->r_ptr[chn] += self->c_dly[chn] - rintf(delay);
 		if (self->r_ptr[chn] < 0) {
 			self->r_ptr[chn] -= MAXDELAY * floor(self->r_ptr[chn] / (float)MAXDELAY);
@@ -112,10 +120,11 @@ process_channel(BalanceControl *self,
 		self->r_ptr[chn] = self->r_ptr[chn] % MAXDELAY;
 		self->c_dly[chn] = rint(delay);
 
-		// fade in
-		for (; pos < 2 * fade_len; pos++) {
-			const float gain = (float)(pos - fade_len) / (float)fade_len;
-			DLYWITHGAIN(gain * amp)
+		/* fade in, x-fade */
+		for (; pos < fade_len; pos++) {
+			const float gain = (float)pos / (float)fade_len;
+			buffer[ self->w_ptr[chn] ] = input[pos]; \
+			output[pos] += buffer[ self->r_ptr[chn] ] * (gain * SMOOTHGAIN);
 			INCREMENT_PTRS(chn);
 		}
 	}
