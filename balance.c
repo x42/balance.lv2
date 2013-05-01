@@ -37,10 +37,6 @@ typedef enum {
 	BLC_DLYL,
 	BLC_DLYR,
 	BLC_MONOIZE,
-	BLC_MTRIL,
-	BLC_MTRIR,
-	BLC_MTROL,
-	BLC_MTROR,
 	BLC_INL,
 	BLC_INR,
 	BLC_OUTL,
@@ -52,8 +48,6 @@ typedef struct {
 	float* balance;
 	float* unitygain;
 	float* monomode;
-	float* meterin[CHANNELS];
-	float* meterout[CHANNELS];
 	float* delay[CHANNELS];
 	float* input[CHANNELS];
 	float* output[CHANNELS];
@@ -144,7 +138,7 @@ static float db_to_gain(const float d) {
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
-	int c, i;
+	int i;
 	BalanceControl* self = (BalanceControl*)instance;
 	const float balance = *self->balance;
 	const float trim = db_to_gain(*self->trim);
@@ -188,24 +182,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	*(self->atten[1]) = gain_to_db(gain_right);
 #endif
 
-	for (c=0; c < CHANNELS; ++c) {
-		float sig_max = 0;
-		for (i=0; i < n_samples; ++i) {
-			sig_max = MAX(sig_max, self->input[c][i]);
-		}
-		*(self->meterin[c]) = gain_to_db(sig_max);
-	}
-
 	process_channel(self, gain_left * trim,  0, n_samples);
 	process_channel(self, gain_right * trim, 1, n_samples);
-
-	for (c=0; c < CHANNELS; ++c) {
-		float sig_max = 0;
-		for (i=0; i < n_samples; ++i) {
-			sig_max = MAX(sig_max, self->output[c][i]);
-		}
-		*(self->meterout[c]) = gain_to_db(sig_max);
-	}
 
 	switch ((int) *self->monomode) {
 		case 1:
@@ -272,18 +250,6 @@ connect_port(LV2_Handle instance,
 		break;
 	case BLC_MONOIZE:
 		self->monomode = data;
-		break;
-	case BLC_MTRIL:
-		self->meterin[0] = data;
-		break;
-	case BLC_MTRIR:
-		self->meterin[1] = data;
-		break;
-	case BLC_MTROL:
-		self->meterout[0] = data;
-		break;
-	case BLC_MTROR:
-		self->meterout[1] = data;
 		break;
 	case BLC_DLYL:
 		self->delay[0] = data;
