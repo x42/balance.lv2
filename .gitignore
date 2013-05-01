@@ -1,3 +1,6 @@
 /manifest.ttl
 *.so
+
 *.swp
+cscope.*
+tags
