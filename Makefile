@@ -16,7 +16,7 @@ LOADLIBES=-lm
 LV2NAME=balance
 LV2GUI=balanceUI
 BUNDLE=balance.lv2
-CFLAGS+=-fPIC
+CFLAGS+=-fPIC -std=c99
 TX=textures/
 
 IS_OSX=
@@ -109,12 +109,12 @@ ifeq ($(HAVE_UI), yes)
 	sed "s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/;" $(LV2NAME).ui.ttl.in >> $(LV2NAME).ttl
 endif
 
-$(LV2NAME)$(LIB_EXT): balance.c
+$(LV2NAME)$(LIB_EXT): balance.c uris.h
 	$(CC) $(CFLAGS) \
 	  -o $(LV2NAME)$(LIB_EXT) balance.c \
 	  $(LDFLAGS) $(LOADLIBES) -shared $(LV2LDFLAGS)
 
-$(LV2GUI)$(LIB_EXT): ui.c $(UIDEPS)
+$(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS)
 	$(CC) $(CFLAGS) \
 		-o $(LV2GUI)$(LIB_EXT) ui.c \
 		$(LDFLAGS) $(UICFLAGS) $(UILIBS) -shared $(LV2LDFLAGS)

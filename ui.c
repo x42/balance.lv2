@@ -20,8 +20,6 @@
 #define _GNU_SOURCE
 #define GL_GLEXT_PROTOTYPES
 
-#define BLC_URI "http://gareus.org/oss/lv2/balance"
-
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -46,7 +44,7 @@
 #define FONTFILE "/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf"
 #endif
 
-
+#include "uris.h"
 #include "ui_model.h"
 
 /* ui-model scale -- on screen we use [-1..+1] orthogonal projection */
@@ -91,6 +89,9 @@ typedef struct {
   LV2UI_Write_Function write;
   LV2UI_Controller     controller;
 
+  LV2_URID_Map* map;
+  balanceURIs  uris;
+
   PuglView*            view;
   int                  width;
   int                  height;
@@ -118,6 +119,11 @@ typedef struct {
   float dndval;
   float dndx, dndy;
   int hoverid;
+
+  float p_bal[2];
+  float p_dly[2];
+  float p_mtr_in[2];
+  float p_mtr_out[2];
 
   FTGLfont *font_small;
 } BLCui;
@@ -635,7 +641,7 @@ onDisplay(PuglView* view)
     setupLight();
     initTextures(ui->view);
     ui->font_small = ftglCreateBufferFont(FONTFILE);
-    ftglSetFontFaceSize(ui->font_small, 44, 72);
+    ftglSetFontFaceSize(ui->font_small, 36, 72);
     ftglSetFontCharMap(ui->font_small, ft_encoding_unicode);
   }
 
@@ -720,12 +726,14 @@ onDisplay(PuglView* view)
 
     if (ui->ctrls[i].type == OBJ_DIAL && ui->ctrls[i].max != 0) {
       float x = ui->ctrls[i].x;
-      float y = ui->ctrls[i].y - ui->ctrls[i].h;
+      float y = ui->ctrls[i].y - ui->ctrls[i].h + .2;
       char tval[10];
-      // XXX
+      // TODO -- format callback function
       if (i==0) {
+	/* trim */
 	sprintf(tval, "%+02.1fdB", ui->ctrls[i].cur);
       } else if (i==1) {
+	/* balance */
 	int p= rint(ui->ctrls[i].cur * 100);
 	if (p < 0) {
 	  sprintf(tval, "L%3d", -p);
@@ -735,11 +743,36 @@ onDisplay(PuglView* view)
 	  sprintf(tval, "center");
 	}
       } else {
-	sprintf(tval, "%.0f", ui->ctrls[i].cur);
+	sprintf(tval, "%.0fsm", ui->ctrls[i].cur);
       }
-      unity_box(view, x-1.2, x+1.2, y-0.5, y+0.5, no_mat);
+      unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
       render_text(view, tval, x, y, -0.1f, 1);
     }
+  }
+
+  if (1) {
+    float x = -2.1;
+    float y = ui->ctrls[1].y + .2;
+    char tval[10];
+    sprintf(tval, "%+02.1fdB", ui->p_bal[0]);
+    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
+    render_text(view, tval, x, y, -0.1f, 1);
+
+    x = 2.1;
+    sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
+    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
+    render_text(view, tval, x, y, -0.1f, 1);
+
+    y = ui->ctrls[3].y + .2;
+    x = -1.3;
+    sprintf(tval, "%.1fms", ui->p_dly[0]);
+    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
+    render_text(view, tval, x, y, -0.1f, 1);
+
+    x = 1.3;
+    sprintf(tval, "%.1fms", ui->p_dly[1]);
+    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
+    render_text(view, tval, x, y, -0.1f, 1);
   }
 }
 
@@ -971,6 +1004,10 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   ui->dndx       = 0.0;
   ui->dndy       = 0.0;
 
+  ui->p_bal[0] = ui->p_bal[1] = 0;
+  ui->p_dly[0] = ui->p_dly[1] = 0;
+  ui->p_mtr_in[0] = ui->p_mtr_in[1] = -INFINITY;
+  ui->p_mtr_out[0] = ui->p_mtr_out[1] = -INFINITY;
 
   for (i = 0; features && features[i]; ++i) {
     if (!strcmp(features[i]->URI, LV2_UI__parent)) {
@@ -1065,6 +1102,21 @@ instantiate(const LV2UI_Descriptor*   descriptor,
   ui->write      = write_function;
   ui->controller = controller;
 
+  for (int i = 0; features[i]; ++i) {
+    if (!strcmp(features[i]->URI, LV2_URID__map)) {
+      ui->map = (LV2_URID_Map*)features[i]->data;
+    }
+  }
+
+  if (!ui->map) {
+    fprintf(stderr, "BLClv2 error: Host does not support urid:map\n");
+    free(ui);
+    return NULL;
+  }
+
+  map_balance_uris(ui->map, &ui->uris);
+
+
   if (blc_gui_setup(ui, features)) {
     free(ui);
     return NULL;
@@ -1098,13 +1150,41 @@ port_event(LV2UI_Handle handle,
     const void*  buffer)
 {
   BLCui* ui = (BLCui*)handle;
-  if ( format != 0 ) return;
-  if (port_index < 0 || port_index >= TOTAL_OBJ) return;
-  float value =  *(float *)buffer;
-  rmap_val(ui->view, port_index, value);
+
+  if ( format == 0 ) {
+    if (port_index < 0 || port_index >= TOTAL_OBJ) return;
+    float value =  *(float *)buffer;
+    rmap_val(ui->view, port_index, value);
+    puglPostRedisplay(ui->view);
+    return;
+  }
+  if (format != ui->uris.atom_eventTransfer) {
+    return;
+  }
+
+  LV2_Atom* atom = (LV2_Atom*)buffer;
+  if (atom->type != ui->uris.atom_Blank) {
+    return;
+  }
+
+  char *k; float v;
+  if (get_cc_key_value(&ui->uris, (LV2_Atom_Object*)atom, &k, &v)) {
+    return;
+  }
+
+  //printf("key: '%s' val: %f\n", k, v);
+
+  if      (!strcmp(k, "gain_left"))   { ui->p_bal[0] = v; }
+  else if (!strcmp(k, "gain_right"))  { ui->p_bal[1] = v; }
+  else if (!strcmp(k, "delay_left"))  { ui->p_dly[0] = v * 1000.0; }
+  else if (!strcmp(k, "delay_right")) { ui->p_dly[1] = v * 1000.0; }
+  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = v; }
+  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = v; }
+  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = v; }
+  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = v; }
+  else return;
 
   puglPostRedisplay(ui->view);
-
 }
 
 /******************************************************************************

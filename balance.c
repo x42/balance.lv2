@@ -17,13 +17,13 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
-
-#define BLC_URI "http://gareus.org/oss/lv2/balance"
+#include "uris.h"
 
 #define MAXDELAY (2001)
 #define CHANNELS (2)
@@ -43,10 +43,18 @@ typedef enum {
 	BLC_INL,
 	BLC_INR,
 	BLC_OUTL,
-	BLC_OUTR
+	BLC_OUTR,
+	BLC_UINOTIFY
 } PortIndex;
 
 typedef struct {
+  LV2_URID_Map* map;
+  balanceURIs uris;
+
+  LV2_Atom_Forge forge;
+  LV2_Atom_Forge_Frame frame;
+  LV2_Atom_Sequence* notify;
+
 	/* control ports */
 	float* trim;
 	float* balance;
@@ -67,6 +75,10 @@ typedef struct {
 	float c_amp[CHANNELS];
 	int   c_dly[CHANNELS];
 	int   c_monomode;
+
+	float samplerate;
+	float p_bal[CHANNELS];
+	int   p_dly[CHANNELS];
 } BalanceControl;
 
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
@@ -231,6 +243,10 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
+  const uint32_t capacity = self->notify->atom.size;
+  lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
+  lv2_atom_forge_sequence_head(&self->forge, &self->frame, 0);
+
 	if (balance < 0) {
 		gain_right = 1.0 + RAIL(balance, -1.0, 0.0);
 	} else if (balance > 0) {
@@ -262,12 +278,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 			break;
 	}
 
-#if 0
-	/* report attenuation to UI */
-	*(self->atten[C_LEFT]) = gain_to_db(gain_left);
-	*(self->atten[C_RIGHT]) = gain_to_db(gain_right);
-#endif
-
+	/* process audio -- delayline + balance & gain */
 	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
 	process_channel(self, gain_right * trim, C_RIGHT, n_samples);
 
@@ -291,6 +302,29 @@ run(LV2_Handle instance, uint32_t n_samples)
 	channel_map(self, (int) *self->monomode, pos, n_samples);
 	self->c_monomode = (int) *self->monomode;
 
+	/* report values to UI */
+	float bal = gain_to_db(gain_left);
+	if (bal != self->p_bal[C_LEFT]) {
+		forge_kvcontrolmessage(&self->forge, &self->uris, "gain_left", bal);
+	}
+	self->p_bal[C_LEFT] = bal;
+
+	bal = gain_to_db(gain_right);
+	if (bal != self->p_bal[C_RIGHT]) {
+		forge_kvcontrolmessage(&self->forge, &self->uris, "gain_right", bal);
+	}
+	self->p_bal[C_RIGHT] = bal;
+
+	if (self->p_dly[C_LEFT] != self->c_dly[C_LEFT]) {
+		forge_kvcontrolmessage(&self->forge, &self->uris, "delay_left", (float) self->c_dly[C_LEFT] / self->samplerate);
+	}
+	self->p_dly[C_LEFT] = self->c_dly[C_LEFT];
+
+	if (self->p_dly[C_RIGHT] != self->c_dly[C_RIGHT]) {
+		forge_kvcontrolmessage(&self->forge, &self->uris, "delay_right", (float) self->c_dly[C_RIGHT] / self->samplerate);
+	}
+	self->p_dly[C_RIGHT] = self->c_dly[C_RIGHT];
+
 }
 
 static LV2_Handle
@@ -303,13 +337,31 @@ instantiate(const LV2_Descriptor*     descriptor,
 	BalanceControl* self = (BalanceControl*)calloc(1, sizeof(BalanceControl));
 	if (!self) return NULL;
 
+  for (int i=0; features[i]; ++i) {
+    if (!strcmp(features[i]->URI, LV2_URID__map)) {
+      self->map = (LV2_URID_Map*)features[i]->data;
+    }
+  }
+
+  if (!self->map) {
+    fprintf(stderr, "BLClv2 error: Host does not support urid:map\n");
+		free(self);
+		return NULL;
+	}
+
+  map_balance_uris(self->map, &self->uris);
+  lv2_atom_forge_init(&self->forge, self->map);
+
 	for (i=0; i < CHANNELS; ++i) {
 		self->c_amp[i] = 1.0;
 		self->c_dly[i] = 0;
 		self->r_ptr[i] = self->w_ptr[i] = 0;
+		self->p_bal[i] = INFINITY;
+		self->p_dly[i] = -1;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
 	}
 	self->c_monomode = 0;
+	self->samplerate = rate;
 
 	return (LV2_Handle)self;
 }
@@ -351,6 +403,9 @@ connect_port(LV2_Handle instance,
 		break;
 	case BLC_OUTR:
 		self->output[C_RIGHT] = data;
+		break;
+	case BLC_UINOTIFY:
+		self->notify = (LV2_Atom_Sequence*)data;
 		break;
 	}
 }
