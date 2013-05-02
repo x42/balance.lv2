@@ -1,0 +1,5 @@
+2013-05-02 (0.2.0)  Robin Gareus <robin@gareus.org>
+* added openGL based UI
+
+2013-05-01 (0.1.0)  Robin Gareus <robin@gareus.org>
+* initial version of panner with delaylines

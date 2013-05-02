@@ -1,0 +1,29 @@
+Source: balance-lv2
+Section: sound
+Priority: optional
+Maintainer: Robin Gareus <robin@gareus.org>
+Build-Depends: debhelper (>= 8),
+ libftgl-dev,
+ libglu1-mesa-dev,
+ libx11-dev,
+ lv2-dev (>=1.0.0~dfsg2-2),
+ ttf-bitstream-vera
+Homepage: https://github.com/x42/balance.lv2
+Standards-Version: 3.9.2
+
+Package: balance-lv2
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ ttf-bitstream-vera
+Description: Stereo Balance Control Plugin
+ balance.lv2 is an audio-plugin for stereo balance control with
+ optional per channel delay.
+ .
+ balance.lv2 facilitates adjusting stereo-microphone recordings
+ (X-Y, A-B, ORTF).
+ But it also generally useful as "Input Channel Conditioner".
+ It allows for attenuating the signal on one of the channels as well as
+ delaying the signals (move away from the microphone).
+ To round off the feature-set channels can be swapped or the signal can be
+ downmixed to mono after the delay.
+
