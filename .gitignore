@@ -1,5 +1,8 @@
 /manifest.ttl
+/balance.ttl
 *.so
+*.blend1
+*.blend2
 
 *.swp
 cscope.*
