@@ -136,6 +136,6 @@ uninstall:
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 clean:
-	rm -f *.o manifest.ttl $(LV2NAME)$(LIB_EXT) $(LV2GUI)$(LIB_EXT)
+	rm -f manifest.ttl balance.ttl $(LV2NAME)$(LIB_EXT) $(LV2GUI)$(LIB_EXT)
 
 .PHONY: clean all install uninstall
