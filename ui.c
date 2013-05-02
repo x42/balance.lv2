@@ -556,6 +556,12 @@ render_text(PuglView* view, const char *text, float x, float y, float z, int ali
       bb[0], bb[1], bb[2], bb[3], bb[4], bb[5]);
 #endif
   switch(align) {
+    case 4: // center + bottom
+      glTranslatef(
+	  (bb[3] - bb[0])/-2.0,
+	  0,
+	  0);
+      break;
     case 1: // center + middle
       glTranslatef(
 	  (bb[3] - bb[0])/-2.0,
@@ -825,6 +831,23 @@ onDisplay(PuglView* view)
     unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
     unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_out[1], -.1, glow_red);
   }
+
+  if (1) {
+    switch((int) vmap_val(view, 2)) {
+      case 1:
+	render_text(view, "maintain",   -3.0, 2.4, -0.1f, 4);
+	render_text(view, "amplitude",  -3.0, 2.0, -0.1f, 4);
+	break;
+      case 2:
+	render_text(view, "equal",  -3.0, 2.4, -0.1f, 4);
+	render_text(view, "power",  -3.0, 2.0, -0.1f, 4);
+	break;
+      default:
+	render_text(view, "classic",  -3.0, 2.4, -0.1f, 4);
+	render_text(view, "balance",  -3.0, 2.0, -0.1f, 4);
+	break;
+    }
+  }
 }
 
 static void
@@ -967,7 +990,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
 
   if (puglGetModifiers(view) & PUGL_MOD_CTRL) {
     ui->dndscale =.05;
-  } else if (puglGetModifiers(view) & PUGL_MOD_SHIFT) {
+  } else if (puglGetModifiers(view) & (PUGL_MOD_ALT | PUGL_MOD_SUPER)) {
     ui->dndscale = 2.0;
   } else {
     ui->dndscale = 1.0;
@@ -979,7 +1002,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
     }
     switch (ui->ctrls[i].type) {
       case OBJ_DIAL:
-	if (puglGetModifiers(view) & PUGL_MOD_ALT) {
+	if (puglGetModifiers(view) & PUGL_MOD_SHIFT) {
 	  ui->ctrls[i].cur = ui->ctrls[i].dfl;
 	  notifyPlugin(view, i);
 	  puglPostRedisplay(view);
