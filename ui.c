@@ -74,11 +74,11 @@ static inline int MOUSEIN(
 }
 
 /* total number of interactive objects */
-#define TOTAL_OBJ (6)
+#define TOTAL_OBJ (10)
 
 typedef struct {
   int type; // type ID from ui_model.h
-  float min, max, cur;  // value range and current value
+  float min, max, cur, dfl;  // value range and current value
   float x,y; // matrix position
   float w,h; // bounding box
   int texID; // texture ID
@@ -289,13 +289,24 @@ static void project_mouse(PuglView* view, int mx, int my, float *x, float *y) {
 }
 
 
-
 /******************************************************************************
- * Value mapping, MIDI <> internal min/max <> mouse
+ * Value mapping
  */
 
 static void rmap_val(PuglView* view, const int elem, const float val) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
+  if (elem > 4 && elem < 10) {
+    int pb = val + 5;
+    for (int i=5; i < 10; ++i) {
+      if (i==pb) {
+	ui->ctrls[i].cur = ui->ctrls[i].max;
+      } else {
+	ui->ctrls[i].cur = ui->ctrls[i].min;
+      }
+    }
+    return;
+  }
+
   if (ui->ctrls[elem].max == 0) {
     ui->ctrls[elem].cur = ui->ctrls[elem].min + rint(val);
   } else {
@@ -303,6 +314,7 @@ static void rmap_val(PuglView* view, const int elem, const float val) {
   }
 }
 
+/* called from lv2 plugin if value has changed (via port_event) */
 static float vmap_val(PuglView* view, const int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (ui->ctrls[elem].max == 0) {
@@ -312,11 +324,24 @@ static float vmap_val(PuglView* view, const int elem) {
   }
 }
 
-/* call lv2 plugin if value has changed */
+/* notify lv2 plugin about changed value */
 static void notifyPlugin(PuglView* view, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  const float val = vmap_val(view, elem);
-  ui->write(ui->controller, elem, sizeof(float), 0, (const void*)&val);
+  if (elem > 4 && elem < 10) {
+    /* push/radio button special */
+    for (int i=5; i < 10; ++i) {
+      if (i==elem)
+	ui->ctrls[i].cur = ui->ctrls[i].max;
+      else
+	ui->ctrls[i].cur = ui->ctrls[i].min;
+    }
+    const float val = elem - 5;
+    ui->write(ui->controller, 5, sizeof(float), 0, (const void*)&val);
+    return;
+  } else {
+    const float val = vmap_val(view, elem);
+    ui->write(ui->controller, elem, sizeof(float), 0, (const void*)&val);
+  }
 }
 
 /* process mouse motion, update value */
@@ -479,8 +504,8 @@ static void setupLight() {
   const GLfloat light0_ambient[]  = { 0.2, 0.15, 0.1, 1.0 };
   const GLfloat light0_diffuse[]  = { 1.0, 1.0, 1.0, 1.0 };
   const GLfloat light0_specular[] = { 0.4, 0.4, 0.9, 1.0 };
-  const GLfloat light0_position[] = {  1.0, -2.5, -20.0, 0 };
-  const GLfloat spot_direction[]  = { -1.0,  2.5,  20.0 };
+  const GLfloat light0_position[] = {  1.0, -2.5, -10.0, 0 };
+  const GLfloat spot_direction[]  = { -1.0,  2.5,  10.0 };
 
   glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
   glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
@@ -505,38 +530,8 @@ static void setupLight() {
 }
 
 /******************************************************************************
- * puGL callbacks
+ * drawing help functions
  */
-
-static void
-onReshape(PuglView* view, int width, int height)
-{
-  BLCui* ui = (BLCui*)puglGetHandle(view);
-  const float invaspect = (float) height / (float) width;
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(-1.0, 1.0, -invaspect, invaspect, 3.0, -3.0);
-
-  glRotatef(ui->rot[0], 0, 1, 0);
-  glRotatef(ui->rot[1], 1, 0, 0);
-  glRotatef(ui->rot[2], 0, 0, 1);
-  glScalef(ui->scale, ui->scale, ui->scale);
-  glTranslatef(ui->off[0], ui->off[1], ui->off[2]);
-
-  GLdouble matrix[16];
-  glGetDoublev(GL_PROJECTION_MATRIX, matrix);
-  invertMatrix(matrix, ui->matrix);
-
-#ifdef DEBUG_ROTATION_MATRIX
-  print4x4(matrix);
-  print4x4(ui->matrix);
-#endif
-
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-  return;
-}
 
 static void
 render_text(PuglView* view, const char *text, float x, float y, float z, int align)
@@ -589,9 +584,10 @@ render_text(PuglView* view, const char *text, float x, float y, float z, int ali
 }
 
 static void
-unity_box(PuglView* view,
+unity_box2d(PuglView* view,
     const float x0, const float x1,
     const float y0, const float y1,
+    const float z,
     const GLfloat color[4])
 {
   glPushMatrix();
@@ -601,23 +597,56 @@ unity_box(PuglView* view,
   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, color);
   glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, color);
   glBegin(GL_QUADS);
-  glVertex3f(x0, y0, 0);
-  glVertex3f(x1, y0, 0);
-  glVertex3f(x1, y1, 0);
-  glVertex3f(x0, y1, 0);
+  glVertex3f(x0, y0, z);
+  glVertex3f(x1, y0, z);
+  glVertex3f(x1, y1, z);
+  glVertex3f(x0, y1, z);
   glEnd();
   glPopMatrix();
 }
 
-
-/**
- * main display fn
+/******************************************************************************
+ * puGL callbacks
  */
 
+static void
+onReshape(PuglView* view, int width, int height)
+{
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  const float invaspect = (float) height / (float) width;
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(-1.0, 1.0, -invaspect, invaspect, 3.0, -3.0);
+
+  glRotatef(ui->rot[0], 0, 1, 0);
+  glRotatef(ui->rot[1], 1, 0, 0);
+  glRotatef(ui->rot[2], 0, 0, 1);
+  glScalef(ui->scale, ui->scale, ui->scale);
+  glTranslatef(ui->off[0], ui->off[1], ui->off[2]);
+
+  GLdouble matrix[16];
+  glGetDoublev(GL_PROJECTION_MATRIX, matrix);
+  invertMatrix(matrix, ui->matrix);
+
+#ifdef DEBUG_ROTATION_MATRIX
+  print4x4(matrix);
+  print4x4(ui->matrix);
+#endif
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+  return;
+}
+
+
+
+/* main display function */
 static void
 onDisplay(PuglView* view)
 {
   int i;
+  char tval[16];
   BLCui* ui = (BLCui*)puglGetHandle(view);
 
   const GLfloat no_mat[] = { 0.0, 0.0, 0.0, 1.0 };
@@ -625,10 +654,12 @@ onDisplay(PuglView* view)
   const GLfloat no_shininess[] = { 128.0 };
   const GLfloat high_shininess[] = { 5.0 };
 
-  const GLfloat mat_strip[] =  { 0.3, 0.3, 0.3, 1.0 };
-  const GLfloat mat_dial[] =   { 0.1, 0.1, 0.1, 1.0 };
+  const GLfloat mat_strip[] =  { 0.05, 0.05, 0.05, 1.0 };
+  const GLfloat mat_dial[] =   { 0.10, 0.10, 0.10, 1.0 };
+  const GLfloat mat_button[] = { 0.10, 0.10, 0.10, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
   const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
+  const GLfloat lamp_red[] =   { 0.3, 0.0, 0.00, 1.0 };
 
   if (!ui->initialized) {
     /* initialization needs to happen from event context
@@ -705,6 +736,17 @@ onDisplay(PuglView* view)
 	}
 	glRotatef(ui->ctrls[i].cur == ui->ctrls[i].min ? -12 : 12.0, 1, 0, 0);
 	break;
+      case OBJ_PUSHBUTTON:
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_button);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_button);
+	if (ui->ctrls[i].cur == ui->ctrls[i].max) {
+	  glMaterialfv(GL_FRONT, GL_EMISSION, lamp_red);
+	  glTranslatef(0.0, 0.0, .38);
+	} else {
+	  glTranslatef(0.0, 0.0, .15);
+	  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_mat);
+	}
+	break;
       default:
 	break;
     }
@@ -718,16 +760,15 @@ onDisplay(PuglView* view)
       glEnable(GL_TEXTURE_2D);
       glBindTexture(GL_TEXTURE_2D, ui->texID[ui->ctrls[i].texID]);
     }
-#if 1
+
     drawMesh(view, ui->ctrls[i].type);
     glDisable(GL_TEXTURE_2D);
-#endif
+
     glPopMatrix();
 
     if (ui->ctrls[i].type == OBJ_DIAL && ui->ctrls[i].max != 0) {
       float x = ui->ctrls[i].x;
       float y = ui->ctrls[i].y - ui->ctrls[i].h + .2;
-      char tval[10];
       // TODO -- format callback function
       if (i==0) {
 	/* trim */
@@ -745,34 +786,44 @@ onDisplay(PuglView* view)
       } else {
 	sprintf(tval, "%.0fsm", ui->ctrls[i].cur);
       }
-      unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
+      unity_box2d(view, x-1.0, x+1.0, y-0.3, y+0.3, 0, no_mat);
       render_text(view, tval, x, y, -0.1f, 1);
     }
   }
 
+  /* value info */
+  sprintf(tval, "%+02.1fdB", ui->p_bal[0]);
+  render_text(view, tval, -1.35, ui->ctrls[1].y + 1.1, -0.1f, 1);
+
+  sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
+  render_text(view, tval,  1.30, ui->ctrls[1].y + 1.1, -0.1f, 1);
+
+  sprintf(tval, "%.1fms", ui->p_dly[0]);
+  render_text(view, tval, -1.35, ui->ctrls[3].y - .3, -0.1f, 1);
+
+  sprintf(tval, "%.1fms", ui->p_dly[1]);
+  render_text(view, tval,  1.30, ui->ctrls[3].y - .3, -0.1f, 1);
+
   if (1) {
-    float x = -2.1;
-    float y = ui->ctrls[1].y + .2;
-    char tval[10];
-    sprintf(tval, "%+02.1fdB", ui->p_bal[0]);
-    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
-    render_text(view, tval, x, y, -0.1f, 1);
+    /* meters */
+    float x = -3.5;
+    float y =  5.4;
 
-    x = 2.1;
-    sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
-    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
-    render_text(view, tval, x, y, -0.1f, 1);
+    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_in[0], -.1, glow_red);
 
-    y = ui->ctrls[3].y + .2;
-    x = -1.3;
-    sprintf(tval, "%.1fms", ui->p_dly[0]);
-    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
-    render_text(view, tval, x, y, -0.1f, 1);
+    x = -3.2;
+    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_in[1], -.1, glow_red);
 
-    x = 1.3;
-    sprintf(tval, "%.1fms", ui->p_dly[1]);
-    unity_box(view, x-1.0, x+1.0, y-0.3, y+0.3, no_mat);
-    render_text(view, tval, x, y, -0.1f, 1);
+    y = -8.8;
+    x = -3.5;
+    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_out[0], -.1, glow_red);
+
+    x = -3.2;
+    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_out[1], -.1, glow_red);
   }
 }
 
@@ -797,7 +848,7 @@ onKeyboard(PuglView* view, bool press, uint32_t key)
       if (ui->rot[1] >   0) { ui->rot[1] -= 5; queue_reshape = 1; }
       break;
     case 'w':
-      if (ui->rot[1] <  45)  { ui->rot[1] += 5; queue_reshape = 1; }
+      if (ui->rot[1] <  45) { ui->rot[1] += 5; queue_reshape = 1; }
       break;
     case 'z':
       if (ui->rot[2] > -30) { ui->rot[2] -= 5; queue_reshape = 1; }
@@ -806,10 +857,10 @@ onKeyboard(PuglView* view, bool press, uint32_t key)
       if (ui->rot[2] <  30) { ui->rot[2] += 5; queue_reshape = 1; }
       break;
     case '+':
-      if (ui->scale < 1.5) { ui->scale += .025; queue_reshape = 1; }
+      if (ui->scale < 1.5)  { ui->scale += .025; queue_reshape = 1; }
       break;
     case '-':
-      if (ui->scale > 0.6) { ui->scale -= .025; queue_reshape = 1; }
+      if (ui->scale > 0.6)  { ui->scale -= .025; queue_reshape = 1; }
       break;
     case 'h':
       if (ui->off[0] > -.5) { ui->off[0] -= .025; queue_reshape = 1; }
@@ -824,8 +875,8 @@ onKeyboard(PuglView* view, bool press, uint32_t key)
       if (ui->off[1] <  .5) { ui->off[1] += .025; queue_reshape = 1; }
       break;
     case 's':
-      ui->rot[0] = ui->rot[1] = ui->rot[2] = 0.0;
       ui->scale = 1.0;
+      ui->rot[0] = ui->rot[1] = ui->rot[2] = 0.0;
       ui->off[0] = ui->off[1] = ui->off[2] = 0.0;
       queue_reshape = 1;
       break;
@@ -859,8 +910,10 @@ onScroll(PuglView* view, int x, int y, float dx, float dy)
   for (i = 0; i < TOTAL_OBJ ; ++i) {
     if (MOUSEOVER(ui->ctrls[i], fx, fy)) {
       if (ui->ctrls[i].max == 0) {
+	/* fixed integer dials */
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy) / (ui->ctrls[i].max - ui->ctrls[i].min);
       } else if ((ui->ctrls[i].max - ui->ctrls[i].min) <= 2) {
+	/* -1..+1 float dial */
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy) * .01;
       } else {
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy);
@@ -879,10 +932,9 @@ onMotion(PuglView* view, int x, int y)
   project_mouse(view, x, y, &fx, &fy);
 
   if (ui->dndid < 0) {
-    int i;
     int hover = ui->hoverid;
     ui->hoverid = -1;
-    for (i = 0; i < TOTAL_OBJ; ++i) {
+    for (int i = 0; i < TOTAL_OBJ; ++i) {
       if (!MOUSEOVER(ui->ctrls[i], fx, fy)) {
 	continue;
       }
@@ -895,10 +947,7 @@ onMotion(PuglView* view, int x, int y)
     return;
   }
 
-  const float dx = (fx - ui->dndx);
-  const float dy = (fy - ui->dndy);
-
-  processMotion(view, ui->dndid, dx, dy);
+  processMotion(view, ui->dndid, fx - ui->dndx, fy - ui->dndy);
 }
 
 static void
@@ -908,9 +957,9 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
   int i;
   float fx, fy;
 
+  ui->dndid = -1;
 
   if (!press) {
-    ui->dndid = -1;
     return;
   }
 
@@ -930,20 +979,28 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
     }
     switch (ui->ctrls[i].type) {
       case OBJ_DIAL:
-	ui->dndid = i;
-	ui->dndx = fx;
-	ui->dndy = fy;
-	ui->dndval = ui->ctrls[i].cur;
+	if (puglGetModifiers(view) & PUGL_MOD_ALT) {
+	  ui->ctrls[i].cur = ui->ctrls[i].dfl;
+	  notifyPlugin(view, i);
+	  puglPostRedisplay(view);
+	} else {
+	  ui->dndid = i;
+	  ui->dndx = fx;
+	  ui->dndy = fy;
+	  ui->dndval = ui->ctrls[i].cur;
+	}
 	break;
       case OBJ_SWITCH:
-	if (press) {
-	  if (ui->ctrls[i].cur == ui->ctrls[i].max)
-	    ui->ctrls[i].cur = ui->ctrls[i].min;
-	  else
-	    ui->ctrls[i].cur = ui->ctrls[i].max;
-	  puglPostRedisplay(view);
-	  notifyPlugin(view, i);
-	}
+	if (ui->ctrls[i].cur == ui->ctrls[i].max)
+	  ui->ctrls[i].cur = ui->ctrls[i].min;
+	else
+	  ui->ctrls[i].cur = ui->ctrls[i].max;
+	notifyPlugin(view, i);
+	puglPostRedisplay(view);
+	break;
+      case OBJ_PUSHBUTTON:
+	notifyPlugin(view, i);
+	puglPostRedisplay(view);
 	break;
       default:
 	break;
@@ -1006,8 +1063,8 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 
   ui->p_bal[0] = ui->p_bal[1] = 0;
   ui->p_dly[0] = ui->p_dly[1] = 0;
-  ui->p_mtr_in[0] = ui->p_mtr_in[1] = -INFINITY;
-  ui->p_mtr_out[0] = ui->p_mtr_out[1] = -INFINITY;
+  ui->p_mtr_in[0] = ui->p_mtr_in[1] = 0;
+  ui->p_mtr_out[0] = ui->p_mtr_out[1] = 0;
 
   for (i = 0; features && features[i]; ++i) {
     if (!strcmp(features[i]->URI, LV2_UI__parent)) {
@@ -1049,6 +1106,7 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     ui->ctrls[ID].min = VMIN; \
     ui->ctrls[ID].max = VMAX; \
     ui->ctrls[ID].cur = VCUR; \
+    ui->ctrls[ID].dfl = VCUR; \
     ui->ctrls[ID].x = PX; \
     ui->ctrls[ID].y = PY * invaspect; \
     ui->ctrls[ID].w = W; \
@@ -1056,19 +1114,19 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     ui->ctrls[ID].texID = TEXID; \
   }
 
-  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     0,  3.7,  1.5, 1.5, 1); // trim
+  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     3.0,  3.7,  1.5, 1.5, 1); // trim
 
-  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,       0,  1.5,  1.5, 1.5, 1); // balance
-  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,   3.0,  0.8,  1.5, 1.5, 1); // mode
+  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1); // balance
+  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,     3.0,  1.2,  1.5, 1.5, 1); // mode
 
-  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0, -3.0, -0.8,  1.5, 1.5, 1);
-  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,  3.0, -0.8,  1.5, 1.5, 1);
+  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,  -3.05, -1.1,  1.5, 1.5, 1);
+  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    3.0, -1.1,  1.5, 1.5, 1);
 
-  CTRLELEM(5, OBJ_DIAL,  -4, 0, -4,     0, -3.5,  1.5, 1.5, 1); // monosw
-
-  //CTRLELEM(0, OBJ_SWITCH, 0, 1, 0, 0, -4,  1, 2, 1);
-  //CTRLELEM(1, OBJ_SWITCH, 0, 1, 0, 0,  0,  1, 2, 1);
-
+  CTRLELEM(5, OBJ_PUSHBUTTON, 0, 1, 0, -2.2, -3.9,  1.0, 1.0, -1); 
+  CTRLELEM(6, OBJ_PUSHBUTTON, 0, 1, 0, -0.8, -3.9,  1.0, 1.0, -1); 
+  CTRLELEM(7, OBJ_PUSHBUTTON, 0, 1, 0,  .65, -3.9,  1.0, 1.0, -1); 
+  CTRLELEM(8, OBJ_PUSHBUTTON, 0, 1, 0,  2.1, -3.9,  1.0, 1.0, -1); 
+  CTRLELEM(9, OBJ_PUSHBUTTON, 0, 1, 0,  3.5, -3.9,  1.0, 1.0, -1); 
 
 #ifdef OLD_SUIL
   ui->exit = false;
@@ -1077,7 +1135,6 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 
   return 0;
 }
-
 
 /******************************************************************************
  * LV2 callbacks
@@ -1178,10 +1235,10 @@ port_event(LV2UI_Handle handle,
   else if (!strcmp(k, "gain_right"))  { ui->p_bal[1] = v; }
   else if (!strcmp(k, "delay_left"))  { ui->p_dly[0] = v * 1000.0; }
   else if (!strcmp(k, "delay_right")) { ui->p_dly[1] = v * 1000.0; }
-  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = v; }
-  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = v; }
-  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = v; }
-  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = v; }
+  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = v * 0.01; }
+  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = v * 0.01; }
+  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = v * 0.01; }
+  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = v * 0.01; }
   else return;
 
   puglPostRedisplay(ui->view);

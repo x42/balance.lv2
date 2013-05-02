@@ -79,6 +79,11 @@ typedef struct {
 	float samplerate;
 	float p_bal[CHANNELS];
 	int   p_dly[CHANNELS];
+
+	int   p_peakcnt;
+	float p_peak_in[CHANNELS];
+	float p_peak_out[CHANNELS];
+
 } BalanceControl;
 
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
@@ -234,9 +239,38 @@ static float db_to_gain(const float d) {
 	return pow(10, d/20.0);
 }
 
+static float iec_scale(float db) {
+	 float def = 0.0f;
+
+	 if (db < -70.0f) {
+		 def = 0.0f;
+	 } else if (db < -60.0f) {
+		 def = (db + 70.0f) * 0.25f;
+	 } else if (db < -50.0f) {
+		 def = (db + 60.0f) * 0.5f + 2.5f;
+	 } else if (db < -40.0f) {
+		 def = (db + 50.0f) * 0.75f + 7.5;
+	 } else if (db < -30.0f) {
+		 def = (db + 40.0f) * 1.5f + 15.0f;
+	 } else if (db < -20.0f) {
+		 def = (db + 30.0f) * 2.0f + 30.0f;
+	 } else if (db < 0.0f) {
+		 def = (db + 20.0f) * 2.5f + 50.0f;
+	 } else {
+		 def = 100.0f;
+	 }
+	 return def;
+}
+
+static float peak_db(float peak, float mult) {
+	return (iec_scale(20.0f * log10f(peak)) * mult);
+}
+
+
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
+	int i,c;
 	BalanceControl* self = (BalanceControl*)instance;
 	const float balance = *self->balance;
 	const float trim = db_to_gain(*self->trim);
@@ -278,6 +312,14 @@ run(LV2_Handle instance, uint32_t n_samples)
 			break;
 	}
 
+	/* track peaks */
+	for (c=0; c < CHANNELS; ++c) {
+		for (i=0; i < n_samples; ++i) {
+			const float ps = fabsf(self->input[c][i]);
+			if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
+		}
+	}
+
 	/* process audio -- delayline + balance & gain */
 	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
 	process_channel(self, gain_right * trim, C_RIGHT, n_samples);
@@ -301,6 +343,26 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	channel_map(self, (int) *self->monomode, pos, n_samples);
 	self->c_monomode = (int) *self->monomode;
+
+	/* track peaks */
+	for (c=0; c < CHANNELS; ++c) {
+		for (i=0; i < n_samples; ++i) {
+			const float ps = fabsf(self->output[c][i]);
+			if (ps > self->p_peak_out[c]) self->p_peak_out[c] = ps;
+		}
+	}
+
+	self->p_peakcnt += n_samples;
+	if (self->p_peakcnt > self->samplerate / 15) {
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inl",  peak_db(self->p_peak_in[C_LEFT], 1.0));
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inr",  peak_db(self->p_peak_in[C_RIGHT], 1.0));
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outl", peak_db(self->p_peak_out[C_LEFT], 1.0));
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outr", peak_db(self->p_peak_out[C_RIGHT], 1.0));
+
+		self->p_peakcnt = 0;
+		for (c=0; c < CHANNELS; ++c) { self->p_peak_in[c] = -INFINITY; self->p_peak_out[c] = -INFINITY;}
+	}
+
 
 	/* report values to UI */
 	float bal = gain_to_db(gain_left);
@@ -358,10 +420,13 @@ instantiate(const LV2_Descriptor*     descriptor,
 		self->r_ptr[i] = self->w_ptr[i] = 0;
 		self->p_bal[i] = INFINITY;
 		self->p_dly[i] = -1;
+		self->p_peak_in[i] = -INFINITY;
+		self->p_peak_out[i] = -INFINITY;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
 	}
 	self->c_monomode = 0;
 	self->samplerate = rate;
+	self->p_peakcnt  = 0;
 
 	return (LV2_Handle)self;
 }
