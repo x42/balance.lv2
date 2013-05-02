@@ -7,6 +7,6 @@ override_dh_auto_build:
 	$(MAKE) PREFIX=/usr OPTIMIZATIONS=-O2 LDFLAGS=-Wl,--as-needed
 
 override_dh_auto_install:
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/balance-lv2 PREFIX=/usr
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/balance.lv2 PREFIX=/usr
 
 override_dh_auto_clean:

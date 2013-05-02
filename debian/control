@@ -1,4 +1,4 @@
-Source: balance-lv2
+Source: balance.lv2
 Section: sound
 Priority: optional
 Maintainer: Robin Gareus <robin@gareus.org>
@@ -11,7 +11,7 @@ Build-Depends: debhelper (>= 8),
 Homepage: https://github.com/x42/balance.lv2
 Standards-Version: 3.9.2
 
-Package: balance-lv2
+Package: balance.lv2
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
  ttf-bitstream-vera
