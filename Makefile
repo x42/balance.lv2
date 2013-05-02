@@ -74,6 +74,7 @@ endif
 ifeq ($(HAVE_UI), yes)
   UIDEPS=pugl/pugl.h pugl/pugl_internal.h ui_model.h
   UIDEPS+=$(TX)dial.c $(TX)background.c
+  UIDEPS+=$(TX)mm_lr.c $(TX)mm_rl.c $(TX)mm_ll.c $(TX)mm_rr.c $(TX)mm_mono.c
   ifeq ($(IS_OSX), yes)
     UIDEPS+=pugl/pugl_osx.m
     UILIBS=pugl/pugl_osx.m -framework Cocoa -framework OpenGL

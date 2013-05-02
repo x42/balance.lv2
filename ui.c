@@ -111,7 +111,7 @@ typedef struct {
   /* OpenGL */
   GLuint * vbo;
   GLuint * vinx;
-  GLuint texID[4]; // textures
+  GLuint texID[7]; // textures
   GLdouble matrix[16]; // used for mouse mapping
 
   double rot[3], off[3], scale; // global projection
@@ -446,6 +446,12 @@ static void drawMesh(PuglView* view, unsigned int index) {
 #include "textures/background.c"
 #include "textures/dial.c"
 
+#include "textures/mm_lr.c"
+#include "textures/mm_ll.c"
+#include "textures/mm_rr.c"
+#include "textures/mm_rl.c"
+#include "textures/mm_mono.c"
+
 #define CIMAGE(ID, VARNAME) \
   glGenTextures(1, &ui->texID[ID]); \
   glBindTexture(GL_TEXTURE_2D, ui->texID[ID]); \
@@ -474,6 +480,12 @@ static void initTextures(PuglView* view) {
 
   CIMAGE(0, background_image);
   CIMAGE(1, dial_image);
+
+  CIMAGE(2, mm_lr_image);
+  CIMAGE(3, mm_ll_image);
+  CIMAGE(4, mm_rr_image);
+  CIMAGE(5, mm_rl_image);
+  CIMAGE(6, mm_mono_image);
 }
 
 
@@ -671,7 +683,7 @@ onDisplay(PuglView* view)
   const GLfloat mat_button[] = { 0.10, 0.10, 0.10, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
   const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
-  const GLfloat lamp_red[] =   { 0.5, 0.0, 0.00, 1.0 };
+  const GLfloat lamp_red[] =   { 0.6, 0.4, 0.00, 1.0 };
 
   if (!ui->initialized) {
     /* initialization needs to happen from event context
@@ -748,6 +760,7 @@ onDisplay(PuglView* view)
 	}
 	glRotatef(ui->ctrls[i].cur == ui->ctrls[i].min ? -12 : 12.0, 1, 0, 0);
 	break;
+      case OBJ_BUTTON:
       case OBJ_PUSHBUTTON:
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_button);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_button);
@@ -1027,6 +1040,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
 	notifyPlugin(view, i);
 	puglPostRedisplay(view);
 	break;
+      case OBJ_BUTTON:
       case OBJ_PUSHBUTTON:
 	notifyPlugin(view, i);
 	puglPostRedisplay(view);
@@ -1151,11 +1165,11 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,  -3.05, -1.1,  1.5, 1.5, 1);
   CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    3.0, -1.1,  1.5, 1.5, 1);
 
-  CTRLELEM(5, OBJ_PUSHBUTTON, 0, 1, 0, -2.2, -3.9,  1.0, 1.0, -1); 
-  CTRLELEM(6, OBJ_PUSHBUTTON, 0, 1, 0, -0.8, -3.9,  1.0, 1.0, -1); 
-  CTRLELEM(7, OBJ_PUSHBUTTON, 0, 1, 0,  .65, -3.9,  1.0, 1.0, -1); 
-  CTRLELEM(8, OBJ_PUSHBUTTON, 0, 1, 0,  2.1, -3.9,  1.0, 1.0, -1); 
-  CTRLELEM(9, OBJ_PUSHBUTTON, 0, 1, 0,  3.5, -3.9,  1.0, 1.0, -1); 
+  CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -2.1, -3.5,  1.3, 2.0, 2);
+  CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -0.7, -3.5,  1.3, 2.0, 3);
+  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  0.7, -3.5,  1.3, 2.0, 4);
+  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0,  2.1, -3.5,  1.3, 2.0, 5);
+  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  3.5, -3.5,  1.3, 2.0, 6);
 
 #ifdef OLD_SUIL
   ui->exit = false;
