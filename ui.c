@@ -40,9 +40,15 @@
 #endif
 
 #include <FTGL/ftgl.h>
+
 #ifndef FONTFILE
 #define FONTFILE "/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf"
 #endif
+
+#ifndef FONTSIZE
+#define FONTSIZE 36
+#endif
+
 
 #include "uris.h"
 #include "ui_model.h"
@@ -665,7 +671,7 @@ onDisplay(PuglView* view)
   const GLfloat mat_button[] = { 0.10, 0.10, 0.10, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
   const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
-  const GLfloat lamp_red[] =   { 0.3, 0.0, 0.00, 1.0 };
+  const GLfloat lamp_red[] =   { 0.5, 0.0, 0.00, 1.0 };
 
   if (!ui->initialized) {
     /* initialization needs to happen from event context
@@ -678,7 +684,7 @@ onDisplay(PuglView* view)
     setupLight();
     initTextures(ui->view);
     ui->font_small = ftglCreateBufferFont(FONTFILE);
-    ftglSetFontFaceSize(ui->font_small, 36, 72);
+    ftglSetFontFaceSize(ui->font_small, FONTSIZE, 72);
     ftglSetFontCharMap(ui->font_small, ft_encoding_unicode);
   }
 

@@ -41,11 +41,13 @@ else
 endif
 
 # optional UI
+FONTSIZE?=36
 ifeq ($(IS_OSX), yes)
   FONTFILE?=/usr/X11/lib/X11/fonts/TTF/VeraBd.ttf
 else
   FONTFILE?=/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf
 endif
+
 
 ifeq ($(shell test -f $(FONTFILE) || echo no ), no)
   $(warning UI font can not be found on this system, install bitstream-vera TTF or set the FONTFILE variable to a ttf file)
@@ -85,6 +87,7 @@ ifeq ($(HAVE_UI), yes)
   CFLAGS+=`pkg-config --cflags ftgl`
   UILIBS+=`pkg-config --libs ftgl`
   CFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
+  CFLAGS+=-DFONTSIZE=$(FONTSIZE)
   targets+=$(LV2GUI)$(LIB_EXT)
 else
   $(warning "openGL/GLU is not available - install glu-dev to include LV2 GUI")
