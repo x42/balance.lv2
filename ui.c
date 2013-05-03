@@ -90,6 +90,7 @@ typedef struct {
   float s; // scale
   int texID; // texture ID
   int ctrlidx;
+  void (*fmt)(PuglView*, char *, int);
 } blcwidget;
 
 typedef struct {
@@ -413,6 +414,28 @@ static void processMotion(PuglView* view, int elem, float dx, float dy) {
   }
 }
 
+void dialfmt_trim(PuglView* view, char* out, int elem) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  sprintf(out, "%+02.1fdB", ui->ctrls[elem].cur);
+}
+
+void dialfmt_balance(PuglView* view, char* out, int elem) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  const int p= rint(ui->ctrls[elem].cur * 100);
+  if (p < 0) {
+    sprintf(out, "L%3d", -p);
+  } else if (ui->ctrls[elem].cur > 0) {
+    sprintf(out, "R%3d", p);
+  } else {
+    sprintf(out, "center");
+  }
+}
+
+void dialfmt_delay(PuglView* view, char* out, int elem) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  sprintf(out, "%.0fsm", ui->ctrls[elem].cur);
+}
+
 /******************************************************************************
  * 3D model loading
  * see http://ksolek.fm.interia.pl/Blender/
@@ -713,7 +736,6 @@ onReshape(PuglView* view, int width, int height)
 }
 
 
-
 /* main display function */
 static void
 onDisplay(PuglView* view)
@@ -845,26 +867,10 @@ onDisplay(PuglView* view)
 
     glPopMatrix();
 
-    if (ui->ctrls[i].type == OBJ_DIAL && ui->ctrls[i].max != 0) {
+    if (ui->ctrls[i].fmt) {
       float x = ui->ctrls[i].x;
       float y = ui->ctrls[i].y - ui->ctrls[i].h + .2;
-      // TODO -- format callback function
-      if (i==0) {
-	/* trim */
-	sprintf(tval, "%+02.1fdB", ui->ctrls[i].cur);
-      } else if (i==1) {
-	/* balance */
-	int p= rint(ui->ctrls[i].cur * 100);
-	if (p < 0) {
-	  sprintf(tval, "L%3d", -p);
-	} else if (ui->ctrls[i].cur > 0) {
-	  sprintf(tval, "R%3d", p);
-	} else {
-	  sprintf(tval, "center");
-	}
-      } else {
-	sprintf(tval, "%.0fsm", ui->ctrls[i].cur);
-      }
+      ui->ctrls[i].fmt(view, tval, i);
       unity_box2d(view, x-0.9, x+0.9, y-0.25, y+0.25, 0, no_mat);
       render_text(view, tval, x, y, -0.01f, 1, text_grn);
     }
@@ -1202,7 +1208,7 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   /** add control elements **/
   const float invaspect = (float) ui->height / (float) ui->width;
 
-#define CTRLELEM(ID, TYPE, VMIN, VMAX, VCUR, PX, PY, W, H, S, TEXID) \
+#define CTRLELEM(ID, TYPE, VMIN, VMAX, VCUR, PX, PY, W, H, S, TEXID, FMT) \
   {\
     ui->ctrls[ID].type = TYPE; \
     ui->ctrls[ID].min = VMIN; \
@@ -1215,21 +1221,22 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     ui->ctrls[ID].h = H; \
     ui->ctrls[ID].s = S; \
     ui->ctrls[ID].texID = TEXID; \
+    ui->ctrls[ID].fmt = FMT; \
   }
 
-  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1); // trim
+  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
 
-  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1); // balance
-  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1); // mode
+  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
+  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
 
-  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1);
-  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1);
+  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
+  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
 
-  CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3); // ll
-  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5); // mono
-  CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2); // lr
-  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6); // rl
-  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4); // rr
+  CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3, NULL); // ll
+  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5, NULL); // mono
+  CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2, NULL); // lr
+  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6, NULL); // rl
+  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4, NULL); // rr
 
 #ifdef OLD_SUIL
   ui->exit = false;
