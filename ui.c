@@ -131,6 +131,8 @@ typedef struct {
   float p_dly[2];
   float p_mtr_in[2];
   float p_mtr_out[2];
+  float p_peak_in[2];
+  float p_peak_out[2];
 
   FTGLfont *font_small;
 } BLCui;
@@ -658,6 +660,24 @@ unity_box2d(PuglView* view,
   glPopMatrix();
 }
 
+static void
+peak_meter(PuglView* view,
+  const float x,
+  const float level, const float hold ) {
+  const float y = -8.71;
+  const GLfloat col_black[] =  { 0.0, 0.0, 0.00, 0.3 };
+  const GLfloat col_peak[] =   { 1.0, 0.0, 0.00, 1.0 };
+  const GLfloat col_hold[] =   { 0.9, 0.9, 0.00, 1.0 };
+
+    unity_box2d(view, x-.121, x+.12, y, y + 17.04 * 1.06, 0, col_black);
+    if (hold > 0.02) {
+      const float phy = 17.04 * hold;
+      unity_box2d(view, x-.09, x+.09, y - .066 + phy, y + phy, -.02, col_hold);
+    }
+    unity_box2d(view, x-.09, x+.09, y, y + 17.04 * level, -.01, col_peak);
+}
+
+
 /******************************************************************************
  * puGL callbacks
  */
@@ -712,7 +732,7 @@ onDisplay(PuglView* view)
   const GLfloat mat_button[] = { 0.20, 0.20, 0.20, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
   const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
-  const GLfloat lamp_red[] =   { 0.6, 0.4, 0.00, 1.0 };
+  const GLfloat lamp_red[] =   {0.10, 0.40, 0.10, 1.0 };
   const GLfloat text_grn[] =   {0.10, 0.95, 0.15, 1.0};
   const GLfloat text_gry[] =   {0.75, 0.75, 0.75, 1.0};
 
@@ -798,6 +818,7 @@ onDisplay(PuglView* view)
 	if (ui->ctrls[i].cur == ui->ctrls[i].max) {
 	  glMaterialfv(GL_FRONT, GL_EMISSION, lamp_red);
 	  glTranslatef(0.0, 0.0, .38);
+	  if (i == ui->hoverid) ui->hoverid = -1;
 	} else {
 	  glTranslatef(0.0, 0.0, .15);
 	  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_mat);
@@ -812,6 +833,7 @@ onDisplay(PuglView* view)
     }
 
     if (ui->ctrls[i].texID > 0) {
+      glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
       glEnable(GL_TEXTURE_2D);
       glBindTexture(GL_TEXTURE_2D, ui->texID[ui->ctrls[i].texID]);
@@ -844,57 +866,43 @@ onDisplay(PuglView* view)
 	sprintf(tval, "%.0fsm", ui->ctrls[i].cur);
       }
       unity_box2d(view, x-0.9, x+0.9, y-0.25, y+0.25, 0, no_mat);
-      render_text(view, tval, x, y, -0.1f, 1, text_grn);
+      render_text(view, tval, x, y, -0.01f, 1, text_grn);
     }
   }
 
   /* value info */
   sprintf(tval, "%+02.1fdB", ui->p_bal[0]);
-  render_text(view, tval, -1.35, ui->ctrls[1].y + 1.1, -0.1f, 1, text_grn);
+  render_text(view, tval, -1.30, ui->ctrls[1].y + 1.1, -0.01f, 1, text_grn);
 
   sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
-  render_text(view, tval,  1.30, ui->ctrls[1].y + 1.1, -0.1f, 1, text_grn);
+  render_text(view, tval,  1.30, ui->ctrls[1].y + 1.1, -0.01f, 1, text_grn);
 
   sprintf(tval, "%.1fms", ui->p_dly[0]);
-  render_text(view, tval, -1.00, ui->ctrls[3].y - .3, -0.1f, 1, text_grn);
+  render_text(view, tval, -1.00, ui->ctrls[3].y - .3, -0.01f, 1, text_grn);
 
   sprintf(tval, "%.1fms", ui->p_dly[1]);
-  render_text(view, tval,  1.00, ui->ctrls[3].y - .3, -0.1f, 1, text_grn);
+  render_text(view, tval,  1.00, ui->ctrls[3].y - .3, -0.01f, 1, text_grn);
 
-  if (1) {
-    /* input meters */
-    float x = -4.76;
-    float y = -8.71;
 
-    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_in[0], -.1, glow_red);
+  peak_meter(view, -4.76, ui->p_mtr_in[0], ui->p_peak_in[0]);
+  peak_meter(view, -4.46, ui->p_mtr_in[1], ui->p_peak_in[1]);
 
-    x += .3;
-    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_in[1], -.1, glow_red);
-
-    x = 4.44;
-    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_out[0], -.1, glow_red);
-
-    x += .3;
-    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_out[1], -.1, glow_red);
-  }
+  peak_meter(view,  4.462, ui->p_mtr_out[0], ui->p_peak_out[0]);
+  peak_meter(view,  4.76, ui->p_mtr_out[1], ui->p_peak_out[1]);
 
   if (1) {
     switch((int) vmap_val(view, 2)) {
       case 1:
-	render_text(view, "maintain",   -2.5, 1.3, -0.1f, 4, text_gry);
-	render_text(view, "amplitude",  -2.5, 0.9, -0.1f, 4, text_gry);
+	render_text(view, "maintain",   -2.5, 1.3, -0.01f, 4, text_gry);
+	render_text(view, "amplitude",  -2.5, 0.9, -0.01f, 4, text_gry);
 	break;
       case 2:
-	render_text(view, "equal",  -2.5, 1.3, -0.1f, 4, text_gry);
-	render_text(view, "power",  -2.5, 0.9, -0.1f, 4, text_gry);
+	render_text(view, "equal",  -2.5, 1.3, -0.01f, 4, text_gry);
+	render_text(view, "power",  -2.5, 0.9, -0.01f, 4, text_gry);
 	break;
       default:
-	render_text(view, "classic",  -2.5, 1.3, -0.1f, 4, text_gry);
-	render_text(view, "balance",  -2.5, 0.9, -0.1f, 4, text_gry);
+	render_text(view, "classic",  -2.5, 1.3, -0.01f, 4, text_gry);
+	render_text(view, "balance",  -2.5, 0.9, -0.01f, 4, text_gry);
 	break;
     }
   }
@@ -1325,6 +1333,7 @@ port_event(LV2UI_Handle handle,
   }
 
   //printf("key: '%s' val: %f\n", k, v);
+  // TODO use numeric keys..
 
   if      (!strcmp(k, "gain_left"))   { ui->p_bal[0] = v; }
   else if (!strcmp(k, "gain_right"))  { ui->p_bal[1] = v; }
@@ -1334,6 +1343,11 @@ port_event(LV2UI_Handle handle,
   else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = peak_db(v, 1.0) * 0.01; }
   else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = peak_db(v, 1.0) * 0.01; }
   else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "peak_inl"))    { ui->p_peak_in[0] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "peak_inr"))    { ui->p_peak_in[1] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "peak_outl"))   { ui->p_peak_out[0] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "peak_outr"))   { ui->p_peak_out[1] = peak_db(v, 1.0) * 0.01; }
+
   else return;
 
   puglPostRedisplay(ui->view);

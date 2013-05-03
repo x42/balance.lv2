@@ -33,6 +33,8 @@
 #define C_LEFT (0)
 #define C_RIGHT (1)
 
+#define PEAKAVG (3)
+
 typedef enum {
 	BLC_TRIM   = 0,
 	BLC_BALANCE,
@@ -81,8 +83,14 @@ typedef struct {
 	int   p_dly[CHANNELS];
 
 	int   p_peakcnt;
-	float p_peak_in[CHANNELS];
-	float p_peak_out[CHANNELS];
+	int   p_peakbuf;
+	float p_peak_in[PEAKAVG][CHANNELS];
+	float p_peak_out[PEAKAVG][CHANNELS];
+
+	float p_tme_in[CHANNELS];
+	float p_tme_out[CHANNELS];
+	float p_max_in[CHANNELS];
+	float p_max_out[CHANNELS];
 
 } BalanceControl;
 
@@ -244,10 +252,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 {
 	int i,c;
 	BalanceControl* self = (BalanceControl*)instance;
+	const int pb = self->p_peakbuf;
 	const float balance = *self->balance;
 	const float trim = db_to_gain(*self->trim);
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
+
+	const int pkhld = ceilf(2.0 / ( 0.1 + ((float)n_samples / self->samplerate)));
 
   const uint32_t capacity = self->notify->atom.size;
   lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
@@ -288,7 +299,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	for (c=0; c < CHANNELS; ++c) {
 		for (i=0; i < n_samples; ++i) {
 			const float ps = fabsf(self->input[c][i]);
-			if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
+			if (ps > self->p_peak_in[pb][c]) self->p_peak_in[pb][c] = ps;
 		}
 	}
 
@@ -320,21 +331,53 @@ run(LV2_Handle instance, uint32_t n_samples)
 	for (c=0; c < CHANNELS; ++c) {
 		for (i=0; i < n_samples; ++i) {
 			const float ps = fabsf(self->output[c][i]);
-			if (ps > self->p_peak_out[c]) self->p_peak_out[c] = ps;
+			if (ps > self->p_peak_out[pb][c]) self->p_peak_out[pb][c] = ps;
 		}
 	}
 
+	/* peak hold */
+#define PKF(A,CHN) MAX(self->p_peak_##A [pb][CHN], (( \
+			  self->p_peak_##A [0][CHN] \
+			+ self->p_peak_##A [1][CHN] \
+			+ self->p_peak_##A [2][CHN] \
+			) / 3.0))
+
+#define PKM(A,CHN,ID) { \
+	const float peak =  self->p_peak_##A[pb][CHN]; \
+	if (peak > self->p_max_##A[CHN]) { \
+		self->p_max_##A[CHN] = peak; \
+		self->p_tme_##A[CHN] = 0; \
+		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
+	} else if (self->p_tme_##A[CHN] <= pkhld) { \
+		(self->p_tme_##A[CHN])++; \
+	} else { \
+		self->p_max_##A[CHN] = peak; \
+		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
+	} \
+}
+
+	/* report peaks to UI */
 	self->p_peakcnt += n_samples;
 	if (self->p_peakcnt > self->samplerate / 25) {
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inl",  self->p_peak_in[C_LEFT]);
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inr",  self->p_peak_in[C_RIGHT]);
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outl", self->p_peak_out[C_LEFT]);
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outr", self->p_peak_out[C_RIGHT]);
+		// TODO -- only if UI is active //
+
+		PKM(in, C_LEFT, "peak_inl");
+		PKM(in, C_RIGHT, "peak_inr");
+		PKM(out, C_LEFT, "peak_outl");
+		PKM(out, C_RIGHT, "peak_outr");
+
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inl",  PKF(in, C_LEFT));
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inr",  PKF(in, C_RIGHT));
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outl", PKF(out, C_LEFT));
+		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outr", PKF(out, C_RIGHT));
 
 		self->p_peakcnt = 0;
-		for (c=0; c < CHANNELS; ++c) { self->p_peak_in[c] = -INFINITY; self->p_peak_out[c] = -INFINITY;}
+		self->p_peakbuf = (self->p_peakbuf + 1) % PEAKAVG;
+		for (c=0; c < CHANNELS; ++c) {
+			self->p_peak_in[self->p_peakbuf][c] = -INFINITY;
+			self->p_peak_out[self->p_peakbuf][c] = -INFINITY;
+		}
 	}
-
 
 	/* report values to UI */
 	float bal = gain_to_db(gain_left);
@@ -367,7 +410,7 @@ instantiate(const LV2_Descriptor*     descriptor,
             const char*               bundle_path,
             const LV2_Feature* const* features)
 {
-	int i;
+	int i, p;
 	BalanceControl* self = (BalanceControl*)calloc(1, sizeof(BalanceControl));
 	if (!self) return NULL;
 
@@ -392,13 +435,20 @@ instantiate(const LV2_Descriptor*     descriptor,
 		self->r_ptr[i] = self->w_ptr[i] = 0;
 		self->p_bal[i] = INFINITY;
 		self->p_dly[i] = -1;
-		self->p_peak_in[i] = -INFINITY;
-		self->p_peak_out[i] = -INFINITY;
+		for (p = 0; p < PEAKAVG; ++p) {
+			self->p_peak_in[p][i] = -INFINITY;
+			self->p_peak_out[p][i] = -INFINITY;
+		}
+		self->p_tme_in[i] = 0;
+		self->p_tme_out[i] = 0;
+		self->p_max_in[i] = -INFINITY;
+		self->p_max_out[i] = -INFINITY;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
 	}
 	self->c_monomode = 0;
 	self->samplerate = rate;
 	self->p_peakcnt  = 0;
+	self->p_peakbuf  = 0;
 
 	return (LV2_Handle)self;
 }
