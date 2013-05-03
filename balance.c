@@ -29,8 +29,8 @@
 #define CHANNELS (2)
 
 #define FADE_LEN (64)
-
-#define RMSLEN (.3) // seconds
+#define METER_FALLOFF (20.0) // dB /sec
+#define UPDATE_FREQ (30.0) //  Hz
 
 #define C_LEFT (0)
 #define C_RIGHT (1)
@@ -83,13 +83,6 @@ typedef struct {
 	float samplerate;
 	float p_bal[CHANNELS];
 	int   p_dly[CHANNELS];
-
-	/* RMS calc */
-	int   p_rmscnt;
-	float *p_rms_in[CHANNELS];
-	float *p_rms_out[CHANNELS];
-	double p_rrms_in[CHANNELS];
-	double p_rrms_out[CHANNELS];
 
 	/* peak hold */
 	int   p_peakcnt;
@@ -269,8 +262,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
-	const int pkhld = 50; // steps of 25 Hz updates below -- 2sec
-	const int rmslen = RMSLEN * self->samplerate;
+	const int pkhld = 2.0 * UPDATE_FREQ;
 
   const uint32_t capacity = self->notify->atom.size;
   lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
@@ -328,10 +320,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	for (c=0; c < CHANNELS; ++c) {
 		for (i=0; i < n_samples; ++i) {
 			const float ps = fabsf(self->input[c][i]);
-			const float ps2 = ps * ps;
 			if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
-			self->p_rrms_in[c] += ps2 - self->p_rms_in[c][ (i + self->p_rmscnt) % rmslen ];
-			self->p_rms_in[c][ (i + self->p_rmscnt) % rmslen ] = ps * ps;
 		}
 	}
 
@@ -363,17 +352,14 @@ run(LV2_Handle instance, uint32_t n_samples)
 	for (c=0; c < CHANNELS; ++c) {
 		for (i=0; i < n_samples; ++i) {
 			const float ps = fabsf(self->output[c][i]);
-			const float ps2 = ps * ps;
 			if (ps > self->p_peak_out[c]) self->p_peak_out[c] = ps;
-			self->p_rrms_out[c] += ps2 - self->p_rms_out[c][ (i + self->p_rmscnt) % rmslen ];
-			self->p_rms_out[c][ (i + self->p_rmscnt) % rmslen ] = ps * ps;
 		}
 	}
 
 
 #define VALTODB(V) (20.0f * log10f(V))
 
-	/* peak hold */
+/* peak hold */
 #define PKM(A,CHN,ID) { \
 	const float peak =  self->p_peak_##A[CHN]; \
 	if (peak > self->p_max_##A[CHN]) { \
@@ -394,20 +380,17 @@ run(LV2_Handle instance, uint32_t n_samples)
 	if (dbp > self->p_vpeak_##A[CHN]) { \
 		self->p_vpeak_##A[CHN] = dbp; \
 	} else { \
-		self->p_vpeak_##A[CHN] -= 20.0 /25.0; \
+		self->p_vpeak_##A[CHN] -= METER_FALLOFF / UPDATE_FREQ; \
 		self->p_vpeak_##A[CHN] = MAX(-INFINITY, self->p_vpeak_##A[CHN]); \
 	} \
 }
 
-//#define PKF(A,CHN) (20.0f * log10f(sqrt((self->p_rrms_##A [CHN]) / (float) rmslen))
 //#define PKF(A,CHN) (20.0f * log10f(self->p_peak_##A [CHN]))
 #define PKF(A,CHN) (self->p_vpeak_##A [CHN])
 
 	/* report peaks to UI */
 	self->p_peakcnt += n_samples;
-	self->p_rmscnt = (self->p_rmscnt + n_samples) % rmslen;
-	if (self->p_peakcnt > self->samplerate / 25) {
-		// TODO -- only if UI is active //
+	if (self->p_peakcnt > self->samplerate / UPDATE_FREQ) {
 
 		PKM(in, C_LEFT, "peak_inl");
 		PKM(in, C_RIGHT, "peak_inr");
@@ -424,7 +407,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outl", PKF(out, C_LEFT));
 		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outr", PKF(out, C_RIGHT));
 
-		self->p_peakcnt = 0;
+		self->p_peakcnt -= self->samplerate / UPDATE_FREQ;
 		for (c=0; c < CHANNELS; ++c) {
 			self->p_peak_in[c] = -INFINITY;
 			self->p_peak_out[c] = -INFINITY;
@@ -481,8 +464,6 @@ instantiate(const LV2_Descriptor*     descriptor,
   map_balance_uris(self->map, &self->uris);
   lv2_atom_forge_init(&self->forge, self->map);
 
-	const int rmslen = RMSLEN * rate;
-
 	for (i=0; i < CHANNELS; ++i) {
 		self->c_amp[i] = 1.0;
 		self->c_dly[i] = 0;
@@ -494,11 +475,6 @@ instantiate(const LV2_Descriptor*     descriptor,
 		self->p_peak_out[i] = -INFINITY;
 		self->p_vpeak_in[i] = -INFINITY;
 		self->p_vpeak_out[i] = -INFINITY;
-
-		self->p_rms_in[i] = (float*) calloc(rmslen, sizeof(float));
-		self->p_rms_out[i] = (float*) calloc(rmslen, sizeof(float));
-		self->p_rrms_in[i] = 0;
-		self->p_rrms_out[i] = 0;
 
 		self->p_tme_in[i] = 0;
 		self->p_tme_out[i] = 0;
@@ -564,12 +540,6 @@ connect_port(LV2_Handle instance,
 static void
 cleanup(LV2_Handle instance)
 {
-	int i;
-	BalanceControl* self = (BalanceControl*)instance;
-	for (i=0; i < CHANNELS; ++i) {
-		free(self->p_rms_in[i]);
-		free(self->p_rms_out[i]);
-	}
 	free(instance);
 }
 

@@ -1126,7 +1126,7 @@ static void* ui_thread(void* ptr)
 {
   BLCui* ui = (BLCui*)ptr;
   while (!ui->exit) {
-    usleep(1000000 / 25);  // 25 FPS
+    usleep(1000000 / 30); // FPS
     puglProcessEvents(ui->view);
   }
   return NULL;
