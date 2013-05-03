@@ -757,6 +757,7 @@ onDisplay(PuglView* view)
   const GLfloat lamp_red[] =   {0.10, 0.40, 0.10, 1.0 };
   const GLfloat text_grn[] =   {0.10, 0.95, 0.15, 1.0};
   const GLfloat text_gry[] =   {0.75, 0.75, 0.75, 1.0};
+  const GLfloat shadegry[] =   {0.1, 0.1, 0.1, 0.5};
 
   if (!ui->initialized) {
     /* initialization needs to happen from event context
@@ -897,6 +898,7 @@ onDisplay(PuglView* view)
   peak_meter(view,  4.76, ui->p_mtr_out[1], ui->p_peak_out[1]);
 
   if (1) {
+    unity_box2d(view, -3.55, -1.45, .7, 1.8, 0, shadegry);
     switch((int) vmap_val(view, 2)) {
       case 1:
 	render_text(view, "maintain",   -2.5, 1.3, -0.01f, 4, text_gry);
