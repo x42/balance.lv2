@@ -97,6 +97,7 @@ typedef struct {
   LV2UI_Write_Function write;
   LV2UI_Controller     controller;
 
+  LV2_Atom_Forge forge;
   LV2_URID_Map* map;
   balanceURIs  uris;
 
@@ -1249,6 +1250,24 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 }
 
 /******************************************************************************
+ * LV2 UI -> plugin communication
+ */
+
+static void forge_message_str(BLCui* ui, LV2_URID uri, const char *key) {
+  uint8_t obj_buf[1024];
+  lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 1024);
+
+  LV2_Atom_Forge_Frame set_frame;
+  LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_blank(&ui->forge, &set_frame, 1, uri);
+  if (key) {
+    lv2_atom_forge_property_head(&ui->forge, ui->uris.blc_cckey, 0);
+    lv2_atom_forge_string(&ui->forge, key, strlen(key));
+  }
+  lv2_atom_forge_pop(&ui->forge, &set_frame);
+  ui->write(ui->controller, 10, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
+}
+
+/******************************************************************************
  * LV2 callbacks
  */
 
@@ -1284,6 +1303,7 @@ instantiate(const LV2UI_Descriptor*   descriptor,
   }
 
   map_balance_uris(ui->map, &ui->uris);
+  lv2_atom_forge_init(&ui->forge, ui->map);
 
 
   if (blc_gui_setup(ui, features)) {
@@ -1292,6 +1312,7 @@ instantiate(const LV2UI_Descriptor*   descriptor,
   }
 
   *widget = (void*)puglGetNativeWindow(ui->view);
+  forge_message_str(ui, ui->uris.blc_meters_on, NULL);
 
   return ui;
 }
@@ -1300,6 +1321,7 @@ static void
 cleanup(LV2UI_Handle handle)
 {
   BLCui* ui = (BLCui*)handle;
+  forge_message_str(ui, ui->uris.blc_meters_off, NULL);
 #ifdef OLD_SUIL
   ui->exit = true;
   pthread_join(ui->thread, NULL);

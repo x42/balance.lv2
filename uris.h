@@ -29,6 +29,8 @@
 #define BLC__cckey    BLC_URI "#controlkey"
 #define BLC__ccval    BLC_URI "#controlval"
 #define BLC__control  BLC_URI "#control"
+#define BLC__meteron  BLC_URI "#meteron"
+#define BLC__meteroff BLC_URI "#meteroff"
 
 typedef struct {
 	LV2_URID atom_Blank;
@@ -42,6 +44,9 @@ typedef struct {
 	LV2_URID blc_control;
 	LV2_URID blc_cckey;
 	LV2_URID blc_ccval;
+
+	LV2_URID blc_meters_on;
+	LV2_URID blc_meters_off;
 
 } balanceURIs;
 
@@ -58,6 +63,9 @@ map_balance_uris(LV2_URID_Map* map, balanceURIs* uris)
 	uris->blc_cckey          = map->map(map->handle, BLC__cckey);
 	uris->blc_ccval          = map->map(map->handle, BLC__ccval);
 	uris->blc_control        = map->map(map->handle, BLC__control);
+
+	uris->blc_meters_on       = map->map(map->handle, BLC__meteron);
+	uris->blc_meters_off      = map->map(map->handle, BLC__meteroff);
 }
 
 

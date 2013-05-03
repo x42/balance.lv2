@@ -136,11 +136,20 @@
 		lv2:designation pg:right ;
 	] , [
 		a atom:AtomPort ,
-			lv2:OutputPort ;
+			lv2:InputPort ;
 		atom:bufferType atom:Sequence ;
 		lv2:designation lv2:control ;
 		atom:supports <http://gareus.org/oss/lv2/balance#control> ;
 		lv2:index 10 ;
+		lv2:symbol "control" ;
+		lv2:name "UI to plugin communication"
+	] , [
+		a atom:AtomPort ,
+			lv2:OutputPort ;
+		atom:bufferType atom:Sequence ;
+		lv2:designation lv2:control ;
+		atom:supports <http://gareus.org/oss/lv2/balance#control> ;
+		lv2:index 11 ;
 		lv2:symbol "notify" ;
-		lv2:name "UI communication"
+		lv2:name "plugin to UI communication"
 	] .

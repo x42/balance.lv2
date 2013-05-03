@@ -46,6 +46,7 @@ typedef enum {
 	BLC_INR,
 	BLC_OUTL,
 	BLC_OUTR,
+	BLC_UICONTROL,
 	BLC_UINOTIFY
 } PortIndex;
 
@@ -55,6 +56,7 @@ typedef struct {
 
   LV2_Atom_Forge forge;
   LV2_Atom_Forge_Frame frame;
+  const LV2_Atom_Sequence* control;
   LV2_Atom_Sequence* notify;
 
 	/* control ports */
@@ -263,6 +265,23 @@ run(LV2_Handle instance, uint32_t n_samples)
   const uint32_t capacity = self->notify->atom.size;
   lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
   lv2_atom_forge_sequence_head(&self->forge, &self->frame, 0);
+
+  /* Process incoming events from GUI */
+  if (self->control) {
+    LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(self->control)->body);
+    while(!lv2_atom_sequence_is_end(&(self->control)->body, (self->control)->atom.size, ev)) {
+      if (ev->body.type == self->uris.atom_Blank) {
+				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
+				if (obj->body.otype == self->uris.blc_meters_on) {
+					//printf("Meters ON\n");
+				}
+				if (obj->body.otype == self->uris.blc_meters_off) {
+					//printf("Meters off\n");
+				}
+			}
+      ev = lv2_atom_sequence_next(ev);
+    }
+	}
 
 	if (balance < 0) {
 		gain_right = 1.0 + RAIL(balance, -1.0, 0.0);
@@ -493,6 +512,9 @@ connect_port(LV2_Handle instance,
 		break;
 	case BLC_UINOTIFY:
 		self->notify = (LV2_Atom_Sequence*)data;
+		break;
+	case BLC_UICONTROL:
+		self->control = (const LV2_Atom_Sequence*)data;
 		break;
 	}
 }
