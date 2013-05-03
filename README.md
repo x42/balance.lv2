@@ -15,6 +15,8 @@ Install
 -------
 
 Compiling this plugin requires LV2 SDK (lv2 lv2core), gnu-make and a c-compiler.
+The optional UI depends on libftgl-dev, libglu-dev, libx11-dev and the
+fonts-freefont-ttf (or any other .ttf font).
 
 ```bash
   git clone git://github.com/x42/balance.lv2.git
@@ -32,7 +34,7 @@ Signal Flow & Controls
 
 ![signal flow](https://raw.github.com/x42/balance.lv2/master/doc/signal_flow.png "Signal Flow")
 
-The plugin has six control inputs all of which a re smoothed (over 64 samples) and can
+The plugin has six control inputs, all of which are interpolated and can
 be automated or changed dynamically without introducing clicks.
 
 ### Trim
@@ -46,6 +48,7 @@ Left/Right signal level balance control.
 *Gain Mode* defines the behaviour of the *Balance* knob.
 
 * classic "Balance" mode.
+  * Attenuate one channels at a time; no positive gain.
   * 100% left: mute the right channel, left channel is untouched.
   *  50% left: attenuate the right channel by -6dB (signal * 0.5), left channel is untouched.
   *  29% left: attenuate the right channel by -3dB (signal * 0.71), left channel is untouched.
@@ -78,11 +81,12 @@ Allow to delay the signal of either channel to correct the stereo field (signal 
 The "Downmix to Mono" option will attenuate the output by -6dB. Other options will simply copy
 the result to selected channel(s).
 
-Screenshot
-----------
+Screenshots
+-----------
+The plugin comes with a built-in optional user interface.
 
-![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot_ardour.png "Example running in Ardour")
-![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot_ui.png "Example running in Ardour")
+![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot_ui.png "Built-in openGL GUI")
+![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot_ardour.png "Basic controls in Ardour")
 
 Thanks
 ------

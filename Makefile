@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# these can be overrideen using make variables. e.g.
+# these can be overridden using make variables. e.g.
 #   make CFLAGS=-O2
 #   make install DESTDIR=$(CURDIR)/debian/balance_lv2 PREFIX=/usr
 #
@@ -16,6 +16,7 @@ LOADLIBES=-lm
 LV2NAME=balance
 LV2GUI=balanceUI
 BUNDLE=balance.lv2
+
 CFLAGS+=-fPIC -std=c99
 TX=textures/
 
@@ -51,8 +52,11 @@ endif
 
 
 ifeq ($(shell test -f $(FONTFILE) || echo no ), no)
-  $(warning UI font can not be found on this system, install bitstream-vera TTF or set the FONTFILE variable to a ttf file)
-  $(warning LV2 GUI will not be built)
+  $(warning "!!")
+  $(warning "!! UI font can not be found on this system")
+  $(warning "!! install fonts-freefont-ttf or set the FONTFILE variable to a ttf file")
+  $(warning "!! LV2 GUI will not be built")
+  $(warning "!!")
   FONT_FOUND=no
 else
   FONT_FOUND=yes
@@ -92,7 +96,10 @@ ifeq ($(HAVE_UI), yes)
   CFLAGS+=-DFONTSIZE=$(FONTSIZE)
   targets+=$(LV2GUI)$(LIB_EXT)
 else
-  $(warning "openGL/GLU is not available - install glu-dev to include LV2 GUI")
+  $(warning "!!")
+  $(warning "!! openGL/GLU is not available - GUI disabled")
+  $(warning "!! install glu-dev, ftgl-dev and fonts-freefont-ttf to build LV2 GUI")
+  $(warning "!!")
 endif
 
 
