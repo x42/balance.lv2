@@ -898,6 +898,26 @@ onDisplay(PuglView* view)
 	break;
     }
   }
+  if (1) {
+    glPushMatrix();
+    glLoadIdentity();
+    glMatrixMode(GL_PROJECTION);
+    glRotatef(-90, 1, 0, 0);
+    glMatrixMode(GL_MODELVIEW);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
+    glScalef(0.002,0.002,1.00);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, no_mat);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, no_mat);
+    glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, text_gry);
+
+    glTranslatef(-4.5 * (500.0*SCALE), -0.6 * (500.0*SCALE), -10.1 * SCALE);
+    glScalef(0.9, 1.3, 1.00);
+    ftglRenderFont(ui->font_small, "(C) GPL 2013 Robin Gareus <robin@gareus.org>", FTGL_RENDER_ALL);
+    glMatrixMode(GL_PROJECTION);
+    glRotatef(+90, 1, 0, 0);
+    glMatrixMode(GL_MODELVIEW);
+    glPopMatrix();
+  }
 }
 
 static void
