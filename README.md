@@ -81,7 +81,8 @@ the result to selected channel(s).
 Screenshot
 ----------
 
-![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot.png "Example running in Ardour")
+![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot_ardour.png "Example running in Ardour")
+![screenshot](https://raw.github.com/x42/balance.lv2/master/doc/screenshot_ui.png "Example running in Ardour")
 
 Thanks
 ------
