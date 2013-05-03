@@ -391,16 +391,16 @@ run(LV2_Handle instance, uint32_t n_samples)
 /* peak hold */
 #define PKM(A,CHN,ID) \
 { \
-	const float peak =  self->p_peak_##A[CHN]; \
+	const float peak =  self->p_vpeak_##A[CHN]; \
 	if (peak > self->p_max_##A[CHN]) { \
 		self->p_max_##A[CHN] = peak; \
 		self->p_tme_##A[CHN] = 0; \
-		forge_kvcontrolmessage(&self->forge, &self->uris, ID, VALTODB(self->p_max_##A[CHN])); \
+		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
 	} else if (self->p_tme_##A[CHN] <= pkhld) { \
 		(self->p_tme_##A[CHN])++; \
 	} else { \
 		self->p_max_##A[CHN] = peak; \
-		forge_kvcontrolmessage(&self->forge, &self->uris, ID, VALTODB(self->p_max_##A[CHN])); \
+		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
 	} \
 }
 
@@ -421,15 +421,15 @@ run(LV2_Handle instance, uint32_t n_samples)
 	self->p_peakcnt += n_samples;
 	if (self->p_peakcnt > self->samplerate / UPDATE_FREQ) {
 
-		PKM(in,  C_LEFT,  PEAK_IN_LEFT);
-		PKM(in,  C_RIGHT, PEAK_IN_RIGHT);
-		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
-		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
-
 		PKF(in,  C_LEFT,  METER_IN_LEFT)
 		PKF(in,  C_RIGHT, METER_IN_RIGHT);
 		PKF(out, C_LEFT,  METER_OUT_LEFT);
 		PKF(out, C_RIGHT, METER_OUT_RIGHT);
+
+		PKM(in,  C_LEFT,  PEAK_IN_LEFT);
+		PKM(in,  C_RIGHT, PEAK_IN_RIGHT);
+		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
+		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
 		self->p_peakcnt -= self->samplerate / UPDATE_FREQ;
 		for (c=0; c < CHANNELS; ++c) {
