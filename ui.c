@@ -329,10 +329,6 @@ static float iec_scale(float db) {
 	 return def;
 }
 
-static float peak_db(float peak, float mult) {
-	return (iec_scale(20.0f * log10f(peak)) * mult);
-}
-
 static void rmap_val(PuglView* view, const int elem, const float val) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (elem > 4 && elem < 10) {
@@ -1370,14 +1366,14 @@ port_event(LV2UI_Handle handle,
   else if (!strcmp(k, "gain_right"))  { ui->p_bal[1] = v; }
   else if (!strcmp(k, "delay_left"))  { ui->p_dly[0] = v * 1000.0; }
   else if (!strcmp(k, "delay_right")) { ui->p_dly[1] = v * 1000.0; }
-  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "peak_inl"))    { ui->p_peak_in[0] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "peak_inr"))    { ui->p_peak_in[1] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "peak_outl"))   { ui->p_peak_out[0] = peak_db(v, 1.0) * 0.01; }
-  else if (!strcmp(k, "peak_outr"))   { ui->p_peak_out[1] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "peak_inl"))    { ui->p_peak_in[0] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "peak_inr"))    { ui->p_peak_in[1] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "peak_outl"))   { ui->p_peak_out[0] = iec_scale(v) * 0.01; }
+  else if (!strcmp(k, "peak_outr"))   { ui->p_peak_out[1] = iec_scale(v) * 0.01; }
 
   else return;
 
