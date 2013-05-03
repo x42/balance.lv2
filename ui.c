@@ -66,6 +66,7 @@
    && (mousey) >= (ctrl).y * SCALE - CTRLHEIGHT2(ctrl) \
    && (mousey) <= (ctrl).y * SCALE + CTRLHEIGHT2(ctrl) )
 
+int mesh_initialized = 0;
 
 static inline int MOUSEIN(
     const float X0, const float X1,
@@ -443,12 +444,13 @@ static void initMesh(PuglView* view) {
   int i;
 
   glGenBuffers(OBJECTS_COUNT, ui->vbo);
+  if (!mesh_initialized) mesh_initialized = 1;
 
   for (i = 0; i < OBJECTS_COUNT; i++) {
     glBindBuffer(GL_ARRAY_BUFFER, ui->vbo[i]);
     glBufferData(GL_ARRAY_BUFFER, sizeof (struct vertex_struct) * vertex_count[i], &vertices[vertex_offset_table[i]], GL_STATIC_DRAW);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    transformations[i][10] *= -1.0;
+    if (mesh_initialized == 1) transformations[i][10] *= -1.0;
   }
 
   glGenBuffers(OBJECTS_COUNT, ui->vinx);
@@ -457,6 +459,7 @@ static void initMesh(PuglView* view) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof (indexes[0]) * faces_count[i] * 3, &indexes[indices_offset_table[i]], GL_STATIC_DRAW);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
   }
+  mesh_initialized = 2;
 }
 
 #define BUFFER_OFFSET(x)((char *)NULL+(x))
