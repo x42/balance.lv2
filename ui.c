@@ -680,21 +680,76 @@ unity_box2d(PuglView* view,
   glPopMatrix();
 }
 
+
+static void
+gradient_box2d(PuglView* view,
+    const float x0, const float x1,
+    const float y0, const float y1,
+    const float z,
+    const GLfloat color0[4],
+    const GLfloat color1[4])
+{
+  const GLfloat col_black[] =  { 0.0, 0.0, 0.00, 1.0 };
+  glPushMatrix();
+  glLoadIdentity();
+  glScalef(SCALE, SCALE, SCALE);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, col_black);
+  glBegin(GL_QUADS);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, color0);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, color0);
+  glVertex3f(x0, y0, z);
+  glVertex3f(x1, y0, z);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, color1);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, color1);
+  glVertex3f(x1, y1, z);
+  glVertex3f(x0, y1, z);
+  glEnd();
+  glPopMatrix();
+}
+
+
 static void
 peak_meter(PuglView* view,
   const float x,
   const float level, const float hold ) {
   const float y = -8.71;
-  const GLfloat col_black[] =  { 0.0, 0.0, 0.00, 0.3 };
-  const GLfloat col_peak[] =   { 1.0, 0.0, 0.00, 1.0 };
-  const GLfloat col_hold[] =   { 0.9, 0.9, 0.00, 1.0 };
+  const GLfloat col_black[] =  { 0.0, 0.0, 0.0, 0.5 };
+  const GLfloat col_hold[] =   { 0.9, 0.9, 0.0, 1.0 };
 
-    unity_box2d(view, x-.121, x+.12, y, y + 17.04 * 1.06, 0, col_black);
-    if (hold > 0.02) {
-      const float phy = 17.04 * hold;
-      unity_box2d(view, x-.09, x+.09, y - .066 + phy, y + phy, -.02, col_hold);
-    }
-    unity_box2d(view, x-.09, x+.09, y, y + 17.04 * level, -.01, col_peak);
+  const float x0 = x-.09;
+  const float x1 = x+.09;
+  const float y0 = y;
+  const float y1 = y + 17.04 * level;
+
+  unity_box2d(view, x-.121, x+.12, y, y + 17.04 * 1.06, 0, col_black);
+
+  if (hold > 0.02) {
+    const float phy = 17.04 * hold;
+    unity_box2d(view, x0, x1, y - .066 + phy, y + phy, -.02, col_hold);
+  }
+#if 1
+  if (level < .5) {
+    const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 0.9 };
+    GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 0.9 };
+    col_peak[1] = level / .5;
+    col_peak[2] = 1.0 - col_peak[1];
+    gradient_box2d(view, x0, x1, y0, y1, -.01, col_base, col_peak);
+  } else {
+    const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 0.9 };
+    const GLfloat col_mid[]  =   { 0.0, 1.0, 0.0, 0.9 };
+    GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 0.9 };
+    col_peak[0] = (level-.5) / .56;
+    col_peak[1] = 1.0 - col_peak[0];
+    gradient_box2d(view, x0, x1, y0, y+ 17.04 * .5, -.01, col_base, col_mid);
+    gradient_box2d(view, x0, x1, y+ 17.04 * .5, y1, -.01, col_mid, col_peak);
+  }
+#else
+  const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 1.0 };
+  GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 1.0 };
+  col_peak[0] = level / 1.06;
+  col_peak[2] = 1.0 - col_peak[0];
+  gradient_box2d(view, x0, x1, y0, y1, -.01, col_base, col_peak);
+#endif
 }
 
 
