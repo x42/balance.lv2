@@ -29,7 +29,7 @@
 #define CHANNELS (2)
 
 #define FADE_LEN (64)
-#define METER_FALLOFF (20.0) // dB /sec
+#define METER_FALLOFF (20.0) // dB/sec
 #define UPDATE_FREQ (30.0) //  Hz
 
 #define C_LEFT (0)
@@ -84,10 +84,13 @@ typedef struct {
 	float p_bal[CHANNELS];
 	int   p_dly[CHANNELS];
 
+	int uicom_active;
+
 	/* peak hold */
 	int   p_peakcnt;
 	float p_peak_in[CHANNELS];
 	float p_peak_out[CHANNELS];
+	/* visible peak w/ falloff */
 	float p_vpeak_in[CHANNELS];
 	float p_vpeak_out[CHANNELS];
 
@@ -243,13 +246,34 @@ channel_map_change(BalanceControl *self, int mode,
 	}
 }
 
-static float gain_to_db(const float g) {
+#define VALTODB(V) (20.0f * log10f(V))
+
+static inline float gain_to_db(const float g) {
 	if (g <= 0) return -INFINITY;
-	return 20.0 * log10(g);
+	return VALTODB(g);
 }
 
-static float db_to_gain(const float d) {
+static inline float db_to_gain(const float d) {
 	return pow(10, d/20.0);
+}
+
+static void reset_uicom(BalanceControl* self) {
+	int i;
+	for (i=0; i < CHANNELS; ++i) {
+		self->p_peak_in[i] = -INFINITY;
+		self->p_peak_out[i] = -INFINITY;
+		self->p_vpeak_in[i] = -INFINITY;
+		self->p_vpeak_out[i] = -INFINITY;
+
+		self->p_tme_in[i] = 0;
+		self->p_tme_out[i] = 0;
+		self->p_max_in[i] = -INFINITY;
+		self->p_max_out[i] = -INFINITY;
+
+		self->p_bal[i] = INFINITY;
+		self->p_dly[i] = -1;
+	}
+	self->p_peakcnt  = 0;
 }
 
 static void
@@ -275,10 +299,13 @@ run(LV2_Handle instance, uint32_t n_samples)
       if (ev->body.type == self->uris.atom_Blank) {
 				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
 				if (obj->body.otype == self->uris.blc_meters_on) {
-					//printf("Meters ON\n");
+					if (self->uicom_active == 0) {
+						reset_uicom(self);
+						self->uicom_active = 1;
+					}
 				}
 				if (obj->body.otype == self->uris.blc_meters_off) {
-					//printf("Meters off\n");
+					self->uicom_active = 0;
 				}
 			}
       ev = lv2_atom_sequence_next(ev);
@@ -316,18 +343,19 @@ run(LV2_Handle instance, uint32_t n_samples)
 			break;
 	}
 
-	/* track peaks */
-	for (c=0; c < CHANNELS; ++c) {
-		for (i=0; i < n_samples; ++i) {
-			const float ps = fabsf(self->input[c][i]);
-			if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
+	if (self->uicom_active) {
+		/* input peak meter */
+		for (c=0; c < CHANNELS; ++c) {
+			for (i=0; i < n_samples; ++i) {
+				const float ps = fabsf(self->input[c][i]);
+				if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
+			}
 		}
 	}
 
 	/* process audio -- delayline + balance & gain */
 	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
 	process_channel(self, gain_right * trim, C_RIGHT, n_samples);
-
 
 	/* swap/assign channels */
 	uint32_t pos = 0;
@@ -348,7 +376,11 @@ run(LV2_Handle instance, uint32_t n_samples)
 	channel_map(self, (int) *self->monomode, pos, n_samples);
 	self->c_monomode = (int) *self->monomode;
 
-	/* track peaks */
+	if (!self->uicom_active) {
+		return;
+	}
+
+	/* output peak meter */
 	for (c=0; c < CHANNELS; ++c) {
 		for (i=0; i < n_samples; ++i) {
 			const float ps = fabsf(self->output[c][i]);
@@ -356,11 +388,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 		}
 	}
 
-
-#define VALTODB(V) (20.0f * log10f(V))
-
 /* peak hold */
-#define PKM(A,CHN,ID) { \
+#define PKM(A,CHN,ID) \
+{ \
 	const float peak =  self->p_peak_##A[CHN]; \
 	if (peak > self->p_max_##A[CHN]) { \
 		self->p_max_##A[CHN] = peak; \
@@ -375,7 +405,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 }
 
 /* meter fall off */
-#define PKFO(A,CHN) { \
+#define PKF(A,CHN,ID) \
+{ \
 	float dbp = VALTODB(self->p_peak_##A[CHN]); \
 	if (dbp > self->p_vpeak_##A[CHN]) { \
 		self->p_vpeak_##A[CHN] = dbp; \
@@ -383,29 +414,22 @@ run(LV2_Handle instance, uint32_t n_samples)
 		self->p_vpeak_##A[CHN] -= METER_FALLOFF / UPDATE_FREQ; \
 		self->p_vpeak_##A[CHN] = MAX(-INFINITY, self->p_vpeak_##A[CHN]); \
 	} \
+	forge_kvcontrolmessage(&self->forge, &self->uris, ID, (self->p_vpeak_##A [CHN])); \
 }
-
-//#define PKF(A,CHN) (20.0f * log10f(self->p_peak_##A [CHN]))
-#define PKF(A,CHN) (self->p_vpeak_##A [CHN])
 
 	/* report peaks to UI */
 	self->p_peakcnt += n_samples;
 	if (self->p_peakcnt > self->samplerate / UPDATE_FREQ) {
 
-		PKM(in, C_LEFT, "peak_inl");
-		PKM(in, C_RIGHT, "peak_inr");
-		PKM(out, C_LEFT, "peak_outl");
+		PKM(in,  C_LEFT,  "peak_inl");
+		PKM(in,  C_RIGHT, "peak_inr");
+		PKM(out, C_LEFT,  "peak_outl");
 		PKM(out, C_RIGHT, "peak_outr");
 
-		PKFO(in, C_LEFT);
-		PKFO(in, C_RIGHT);
-		PKFO(out, C_LEFT);
-		PKFO(out, C_RIGHT);
-
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inl",  PKF(in, C_LEFT));
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_inr",  PKF(in, C_RIGHT));
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outl", PKF(out, C_LEFT));
-		forge_kvcontrolmessage(&self->forge, &self->uris, "meter_outr", PKF(out, C_RIGHT));
+		PKF(in,  C_LEFT,  "meter_inl");
+		PKF(in,  C_RIGHT, "meter_inr");
+		PKF(out, C_LEFT,  "meter_outl");
+		PKF(out, C_RIGHT, "meter_outr");
 
 		self->p_peakcnt -= self->samplerate / UPDATE_FREQ;
 		for (c=0; c < CHANNELS; ++c) {
@@ -414,7 +438,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 		}
 	}
 
-	/* report values to UI */
+	/* report values to UI - if changed*/
 	float bal = gain_to_db(gain_left);
 	if (bal != self->p_bal[C_LEFT]) {
 		forge_kvcontrolmessage(&self->forge, &self->uris, "gain_left", bal);
@@ -468,24 +492,14 @@ instantiate(const LV2_Descriptor*     descriptor,
 		self->c_amp[i] = 1.0;
 		self->c_dly[i] = 0;
 		self->r_ptr[i] = self->w_ptr[i] = 0;
-		self->p_bal[i] = INFINITY;
-		self->p_dly[i] = -1;
-
-		self->p_peak_in[i] = -INFINITY;
-		self->p_peak_out[i] = -INFINITY;
-		self->p_vpeak_in[i] = -INFINITY;
-		self->p_vpeak_out[i] = -INFINITY;
-
-		self->p_tme_in[i] = 0;
-		self->p_tme_out[i] = 0;
-		self->p_max_in[i] = -INFINITY;
-		self->p_max_out[i] = -INFINITY;
-
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
 	}
+
+	self->uicom_active = 0;
 	self->c_monomode = 0;
 	self->samplerate = rate;
-	self->p_peakcnt  = 0;
+
+	reset_uicom(self);
 
 	return (LV2_Handle)self;
 }
