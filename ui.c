@@ -57,8 +57,8 @@
 #define SCALE (0.2f)
 
 #define SIGNUM(a) (a < 0 ? -1 : 1)
-#define CTRLWIDTH2(ctrl) (SCALE * (ctrl).w / 2.0)
-#define CTRLHEIGHT2(ctrl) (SCALE * (ctrl).h / 2.0)
+#define CTRLWIDTH2(ctrl) (SCALE * (ctrl).s * (ctrl).w / 2.0)
+#define CTRLHEIGHT2(ctrl) (SCALE * (ctrl).s * (ctrl).h / 2.0)
 
 #define MOUSEOVER(ctrl, mousex, mousey) \
   (   (mousex) >= (ctrl).x * SCALE - CTRLWIDTH2(ctrl) \
@@ -87,6 +87,7 @@ typedef struct {
   float min, max, cur, dfl;  // value range and current value
   float x,y; // matrix position
   float w,h; // bounding box
+  float s; // scale
   int texID; // texture ID
   int ctrlidx;
 } blcwidget;
@@ -298,6 +299,35 @@ static void project_mouse(PuglView* view, int mx, int my, float *x, float *y) {
 /******************************************************************************
  * Value mapping
  */
+
+static float iec_scale(float db) {
+	 float def = 0.0f;
+
+	 if (db < -70.0f) {
+		 def = 0.0f;
+	 } else if (db < -60.0f) {
+		 def = (db + 70.0f) * 0.25f;
+	 } else if (db < -50.0f) {
+		 def = (db + 60.0f) * 0.5f + 2.5f;
+	 } else if (db < -40.0f) {
+		 def = (db + 50.0f) * 0.75f + 7.5;
+	 } else if (db < -30.0f) {
+		 def = (db + 40.0f) * 1.5f + 15.0f;
+	 } else if (db < -20.0f) {
+		 def = (db + 30.0f) * 2.0f + 30.0f;
+	 } else if (db < 0.0f) {
+		 def = (db + 20.0f) * 2.5f + 50.0f;
+	 } else if (db < 6.0f) {
+		 def = db + 100.f;
+	 } else  {
+		 def = 106.0f;
+	 }
+	 return def;
+}
+
+static float peak_db(float peak, float mult) {
+	return (iec_scale(20.0f * log10f(peak)) * mult);
+}
 
 static void rmap_val(PuglView* view, const int elem, const float val) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
@@ -552,19 +582,18 @@ static void setupLight() {
  */
 
 static void
-render_text(PuglView* view, const char *text, float x, float y, float z, int align)
+render_text(PuglView* view, const char *text, float x, float y, float z, int align, const GLfloat *mat_fg)
 {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  const GLfloat mat_b[] = {0.0, 0.0, 0.0, 1.0};
-  const GLfloat mat_r[] = {0.1, 0.95, 0.15, 1.0};
+  const GLfloat mat_bg[] = {0.0, 0.0, 0.0, 1.0};
   float bb[6];
 
   glPushMatrix();
   glLoadIdentity();
 
-  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_b);
-  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_b);
-  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_r);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_bg);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_bg);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, mat_fg);
 
   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_BLEND);
   glScalef(0.002,0.002,1.00);
@@ -680,10 +709,12 @@ onDisplay(PuglView* view)
 
   const GLfloat mat_strip[] =  { 0.05, 0.05, 0.05, 1.0 };
   const GLfloat mat_dial[] =   { 0.10, 0.10, 0.10, 1.0 };
-  const GLfloat mat_button[] = { 0.10, 0.10, 0.10, 1.0 };
+  const GLfloat mat_button[] = { 0.20, 0.20, 0.20, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
   const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
   const GLfloat lamp_red[] =   { 0.6, 0.4, 0.00, 1.0 };
+  const GLfloat text_grn[] =   {0.10, 0.95, 0.15, 1.0};
+  const GLfloat text_gry[] =   {0.75, 0.75, 0.75, 1.0};
 
   if (!ui->initialized) {
     /* initialization needs to happen from event context
@@ -786,6 +817,7 @@ onDisplay(PuglView* view)
       glBindTexture(GL_TEXTURE_2D, ui->texID[ui->ctrls[i].texID]);
     }
 
+    glScalef(ui->ctrls[i].s, ui->ctrls[i].s, 1.0);
     drawMesh(view, ui->ctrls[i].type);
     glDisable(GL_TEXTURE_2D);
 
@@ -811,59 +843,58 @@ onDisplay(PuglView* view)
       } else {
 	sprintf(tval, "%.0fsm", ui->ctrls[i].cur);
       }
-      unity_box2d(view, x-1.0, x+1.0, y-0.3, y+0.3, 0, no_mat);
-      render_text(view, tval, x, y, -0.1f, 1);
+      unity_box2d(view, x-0.9, x+0.9, y-0.25, y+0.25, 0, no_mat);
+      render_text(view, tval, x, y, -0.1f, 1, text_grn);
     }
   }
 
   /* value info */
   sprintf(tval, "%+02.1fdB", ui->p_bal[0]);
-  render_text(view, tval, -1.35, ui->ctrls[1].y + 1.1, -0.1f, 1);
+  render_text(view, tval, -1.35, ui->ctrls[1].y + 1.1, -0.1f, 1, text_grn);
 
   sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
-  render_text(view, tval,  1.30, ui->ctrls[1].y + 1.1, -0.1f, 1);
+  render_text(view, tval,  1.30, ui->ctrls[1].y + 1.1, -0.1f, 1, text_grn);
 
   sprintf(tval, "%.1fms", ui->p_dly[0]);
-  render_text(view, tval, -1.35, ui->ctrls[3].y - .3, -0.1f, 1);
+  render_text(view, tval, -1.00, ui->ctrls[3].y - .3, -0.1f, 1, text_grn);
 
   sprintf(tval, "%.1fms", ui->p_dly[1]);
-  render_text(view, tval,  1.30, ui->ctrls[3].y - .3, -0.1f, 1);
+  render_text(view, tval,  1.00, ui->ctrls[3].y - .3, -0.1f, 1, text_grn);
 
   if (1) {
-    /* meters */
-    float x = -3.5;
-    float y =  5.4;
+    /* input meters */
+    float x = -4.76;
+    float y = -8.71;
 
-    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_in[0], -.1, glow_red);
+    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_in[0], -.1, glow_red);
 
-    x = -3.2;
-    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_in[1], -.1, glow_red);
+    x += .3;
+    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_in[1], -.1, glow_red);
 
-    y = -8.8;
-    x = -3.5;
-    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_out[0], -.1, glow_red);
+    x = 4.44;
+    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_out[0], -.1, glow_red);
 
-    x = -3.2;
-    unity_box2d(view, x-.12, x+.12, y, y + 3.50, 0, no_mat);
-    unity_box2d(view, x-.10, x+.10, y, y + 3.50 * ui->p_mtr_out[1], -.1, glow_red);
+    x += .3;
+    unity_box2d(view, x-.12, x+.12, y, y + 17.04 * 1.06, 0, no_mat);
+    unity_box2d(view, x-.10, x+.10, y, y + 17.04 * ui->p_mtr_out[1], -.1, glow_red);
   }
 
   if (1) {
     switch((int) vmap_val(view, 2)) {
       case 1:
-	render_text(view, "maintain",   -3.0, 2.4, -0.1f, 4);
-	render_text(view, "amplitude",  -3.0, 2.0, -0.1f, 4);
+	render_text(view, "maintain",   -2.5, 1.3, -0.1f, 4, text_gry);
+	render_text(view, "amplitude",  -2.5, 0.9, -0.1f, 4, text_gry);
 	break;
       case 2:
-	render_text(view, "equal",  -3.0, 2.4, -0.1f, 4);
-	render_text(view, "power",  -3.0, 2.0, -0.1f, 4);
+	render_text(view, "equal",  -2.5, 1.3, -0.1f, 4, text_gry);
+	render_text(view, "power",  -2.5, 0.9, -0.1f, 4, text_gry);
 	break;
       default:
-	render_text(view, "classic",  -3.0, 2.4, -0.1f, 4);
-	render_text(view, "balance",  -3.0, 2.0, -0.1f, 4);
+	render_text(view, "classic",  -2.5, 1.3, -0.1f, 4, text_gry);
+	render_text(view, "balance",  -2.5, 0.9, -0.1f, 4, text_gry);
 	break;
     }
   }
@@ -1143,7 +1174,7 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   /** add control elements **/
   const float invaspect = (float) ui->height / (float) ui->width;
 
-#define CTRLELEM(ID, TYPE, VMIN, VMAX, VCUR, PX, PY, W, H, TEXID) \
+#define CTRLELEM(ID, TYPE, VMIN, VMAX, VCUR, PX, PY, W, H, S, TEXID) \
   {\
     ui->ctrls[ID].type = TYPE; \
     ui->ctrls[ID].min = VMIN; \
@@ -1154,22 +1185,23 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     ui->ctrls[ID].y = PY * invaspect; \
     ui->ctrls[ID].w = W; \
     ui->ctrls[ID].h = H; \
+    ui->ctrls[ID].s = S; \
     ui->ctrls[ID].texID = TEXID; \
   }
 
-  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     3.0,  3.7,  1.5, 1.5, 1); // trim
+  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1); // trim
 
-  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1); // balance
-  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,     3.0,  1.2,  1.5, 1.5, 1); // mode
+  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1); // balance
+  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1); // mode
 
-  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,  -3.05, -1.1,  1.5, 1.5, 1);
-  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    3.0, -1.1,  1.5, 1.5, 1);
+  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1);
+  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1);
 
-  CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -2.1, -3.5,  1.3, 2.0, 2);
-  CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -0.7, -3.5,  1.3, 2.0, 3);
-  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  0.7, -3.5,  1.3, 2.0, 4);
-  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0,  2.1, -3.5,  1.3, 2.0, 5);
-  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  3.5, -3.5,  1.3, 2.0, 6);
+  CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3); // ll
+  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5); // mono
+  CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2); // lr
+  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6); // rl
+  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4); // rr
 
 #ifdef OLD_SUIL
   ui->exit = false;
@@ -1278,10 +1310,10 @@ port_event(LV2UI_Handle handle,
   else if (!strcmp(k, "gain_right"))  { ui->p_bal[1] = v; }
   else if (!strcmp(k, "delay_left"))  { ui->p_dly[0] = v * 1000.0; }
   else if (!strcmp(k, "delay_right")) { ui->p_dly[1] = v * 1000.0; }
-  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = v * 0.01; }
-  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = v * 0.01; }
-  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = v * 0.01; }
-  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = v * 0.01; }
+  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = peak_db(v, 1.0) * 0.01; }
+  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = peak_db(v, 1.0) * 0.01; }
   else return;
 
   puglPostRedisplay(ui->view);
