@@ -421,15 +421,15 @@ run(LV2_Handle instance, uint32_t n_samples)
 	self->p_peakcnt += n_samples;
 	if (self->p_peakcnt > self->samplerate / UPDATE_FREQ) {
 
-		PKM(in,  C_LEFT,  "peak_inl");
-		PKM(in,  C_RIGHT, "peak_inr");
-		PKM(out, C_LEFT,  "peak_outl");
-		PKM(out, C_RIGHT, "peak_outr");
+		PKM(in,  C_LEFT,  PEAK_IN_LEFT);
+		PKM(in,  C_RIGHT, PEAK_IN_RIGHT);
+		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
+		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
-		PKF(in,  C_LEFT,  "meter_inl");
-		PKF(in,  C_RIGHT, "meter_inr");
-		PKF(out, C_LEFT,  "meter_outl");
-		PKF(out, C_RIGHT, "meter_outr");
+		PKF(in,  C_LEFT,  METER_IN_LEFT)
+		PKF(in,  C_RIGHT, METER_IN_RIGHT);
+		PKF(out, C_LEFT,  METER_OUT_LEFT);
+		PKF(out, C_RIGHT, METER_OUT_RIGHT);
 
 		self->p_peakcnt -= self->samplerate / UPDATE_FREQ;
 		for (c=0; c < CHANNELS; ++c) {
@@ -441,23 +441,23 @@ run(LV2_Handle instance, uint32_t n_samples)
 	/* report values to UI - if changed*/
 	float bal = gain_to_db(gain_left);
 	if (bal != self->p_bal[C_LEFT]) {
-		forge_kvcontrolmessage(&self->forge, &self->uris, "gain_left", bal);
+		forge_kvcontrolmessage(&self->forge, &self->uris, GAIN_LEFT, bal);
 	}
 	self->p_bal[C_LEFT] = bal;
 
 	bal = gain_to_db(gain_right);
 	if (bal != self->p_bal[C_RIGHT]) {
-		forge_kvcontrolmessage(&self->forge, &self->uris, "gain_right", bal);
+		forge_kvcontrolmessage(&self->forge, &self->uris, GAIN_RIGHT, bal);
 	}
 	self->p_bal[C_RIGHT] = bal;
 
 	if (self->p_dly[C_LEFT] != self->c_dly[C_LEFT]) {
-		forge_kvcontrolmessage(&self->forge, &self->uris, "delay_left", (float) self->c_dly[C_LEFT] / self->samplerate);
+		forge_kvcontrolmessage(&self->forge, &self->uris, DELAY_LEFT, (float) self->c_dly[C_LEFT] / self->samplerate);
 	}
 	self->p_dly[C_LEFT] = self->c_dly[C_LEFT];
 
 	if (self->p_dly[C_RIGHT] != self->c_dly[C_RIGHT]) {
-		forge_kvcontrolmessage(&self->forge, &self->uris, "delay_right", (float) self->c_dly[C_RIGHT] / self->samplerate);
+		forge_kvcontrolmessage(&self->forge, &self->uris, DELAY_RIGHT, (float) self->c_dly[C_RIGHT] / self->samplerate);
 	}
 	self->p_dly[C_RIGHT] = self->c_dly[C_RIGHT];
 

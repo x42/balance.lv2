@@ -1354,29 +1354,27 @@ port_event(LV2UI_Handle handle,
     return;
   }
 
-  char *k; float v;
+  int k; float v;
   if (get_cc_key_value(&ui->uris, (LV2_Atom_Object*)atom, &k, &v)) {
     return;
   }
 
-  //printf("key: '%s' val: %f\n", k, v);
-  // TODO use numeric keys..
-
-  if      (!strcmp(k, "gain_left"))   { ui->p_bal[0] = v; }
-  else if (!strcmp(k, "gain_right"))  { ui->p_bal[1] = v; }
-  else if (!strcmp(k, "delay_left"))  { ui->p_dly[0] = v * 1000.0; }
-  else if (!strcmp(k, "delay_right")) { ui->p_dly[1] = v * 1000.0; }
-  else if (!strcmp(k, "meter_inl"))   { ui->p_mtr_in[0] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "meter_inr"))   { ui->p_mtr_in[1] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "meter_outl"))  { ui->p_mtr_out[0] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "meter_outr"))  { ui->p_mtr_out[1] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "peak_inl"))    { ui->p_peak_in[0] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "peak_inr"))    { ui->p_peak_in[1] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "peak_outl"))   { ui->p_peak_out[0] = iec_scale(v) * 0.01; }
-  else if (!strcmp(k, "peak_outr"))   { ui->p_peak_out[1] = iec_scale(v) * 0.01; }
-
-  else return;
-
+  switch (k) {
+    case GAIN_LEFT:       ui->p_bal[0] = v; break;
+    case GAIN_RIGHT:      ui->p_bal[1] = v; break;
+    case DELAY_LEFT:      ui->p_dly[0] = v * 1000.0; break;
+    case DELAY_RIGHT:     ui->p_dly[1] = v * 1000.0; break;
+    case METER_IN_LEFT:   ui->p_mtr_in[0] = iec_scale(v) * 0.01; break;
+    case METER_IN_RIGHT:  ui->p_mtr_in[1] = iec_scale(v) * 0.01; break;
+    case METER_OUT_LEFT:  ui->p_mtr_out[0] = iec_scale(v) * 0.01; break;
+    case METER_OUT_RIGHT: ui->p_mtr_out[1] = iec_scale(v) * 0.01; break;
+    case PEAK_IN_LEFT:    ui->p_peak_in[0] = iec_scale(v) * 0.01; break;
+    case PEAK_IN_RIGHT:   ui->p_peak_in[1] = iec_scale(v) * 0.01; break;
+    case PEAK_OUT_LEFT:   ui->p_peak_out[0] = iec_scale(v) * 0.01; break;
+    case PEAK_OUT_RIGHT:  ui->p_peak_out[1] = iec_scale(v) * 0.01; break;
+    default:
+      return;
+  }
   puglPostRedisplay(ui->view);
 }
 

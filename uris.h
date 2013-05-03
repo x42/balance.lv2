@@ -50,6 +50,25 @@ typedef struct {
 
 } balanceURIs;
 
+
+// numeric keys
+enum {
+	KEY_INVALID = 0,
+	GAIN_LEFT,
+	GAIN_RIGHT,
+	DELAY_LEFT,
+	DELAY_RIGHT,
+	METER_IN_LEFT,
+	METER_IN_RIGHT,
+	METER_OUT_LEFT,
+	METER_OUT_RIGHT,
+	PEAK_IN_LEFT,
+	PEAK_IN_RIGHT,
+	PEAK_OUT_LEFT,
+	PEAK_OUT_RIGHT
+};
+
+
 static inline void
 map_balance_uris(LV2_URID_Map* map, balanceURIs* uris)
 {
@@ -72,7 +91,7 @@ map_balance_uris(LV2_URID_Map* map, balanceURIs* uris)
 static inline LV2_Atom *
 forge_kvcontrolmessage(LV2_Atom_Forge* forge,
 		const balanceURIs* uris,
-		const char* key, float value)
+		const int key, const float value)
 {
 	//printf("UIcom: Tx '%s' -> %d \n", key, value);
 
@@ -81,7 +100,7 @@ forge_kvcontrolmessage(LV2_Atom_Forge* forge,
 	LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_blank(forge, &frame, 1, uris->blc_control);
 
 	lv2_atom_forge_property_head(forge, uris->blc_cckey, 0);
-	lv2_atom_forge_string(forge, key, strlen(key));
+	lv2_atom_forge_int(forge, key);
 	lv2_atom_forge_property_head(forge, uris->blc_ccval, 0);
 	lv2_atom_forge_float(forge, value);
 	lv2_atom_forge_pop(forge, &frame);
@@ -91,30 +110,23 @@ forge_kvcontrolmessage(LV2_Atom_Forge* forge,
 static inline int
 get_cc_key_value(
 		const balanceURIs* uris, const LV2_Atom_Object* obj,
-		char **k, float *v)
+		int *k, float *v)
 {
 	const LV2_Atom* key = NULL;
 	const LV2_Atom* value = NULL;
 	if (!k || !v) return -1;
-	*k = NULL; *v = 0.0;
+	*k = 0; *v = 0.0;
 
 	if (obj->body.otype != uris->blc_control) {
 		return -1;
 	}
 	lv2_atom_object_get(obj, uris->blc_cckey, &key, uris->blc_ccval, &value, 0);
-	if (!key) {
-		fprintf(stderr, "BLClv2: Malformed ctrl message has no key.\n");
+	if (!key || !value) {
+		fprintf(stderr, "BLClv2: Malformed ctrl message has no key or value.\n");
 		return -1;
 	}
-	if (!value) {
-		fprintf(stderr, "BLClv2: Malformed ctrl message has no value for key '%s'.\n", (char*)LV2_ATOM_BODY(key));
-		return -1;
-	}
-	//printf("UIcom: Rx '%s' -> %d \n", (char*)LV2_ATOM_BODY(key), ((LV2_Atom_Int*)value)->body);
-
-	*k = LV2_ATOM_BODY(key);
+	*k = ((LV2_Atom_Int*)key)->body;
 	*v = ((LV2_Atom_Float*)value)->body;
-
 	return 0;
 }
 
