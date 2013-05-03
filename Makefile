@@ -41,11 +41,12 @@ else
 endif
 
 # optional UI
-FONTSIZE?=36
 ifeq ($(IS_OSX), yes)
   FONTFILE?=/usr/X11/lib/X11/fonts/TTF/VeraBd.ttf
+  FONTSIZE?=36
 else
-  FONTFILE?=/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf
+  FONTFILE?=/usr/share/fonts/truetype/freefont/FreeSansBold.ttf
+  FONTSIZE?=40
 endif
 
 

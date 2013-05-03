@@ -7,14 +7,14 @@ Build-Depends: debhelper (>= 8),
  libglu1-mesa-dev,
  libx11-dev,
  lv2-dev (>=1.0.0~dfsg2-2),
- ttf-bitstream-vera
+ fonts-freefont-ttf
 Homepage: https://github.com/x42/balance.lv2
 Standards-Version: 3.9.2
 
 Package: balance.lv2
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
- ttf-bitstream-vera
+ fonts-freefont-ttf
 Description: Stereo Balance Control Plugin
  balance.lv2 is an audio-plugin for stereo balance control with
  optional per channel delay.
