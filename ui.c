@@ -115,7 +115,7 @@ typedef struct {
   /* OpenGL */
   GLuint * vbo;
   GLuint * vinx;
-  GLuint texID[7]; // textures
+  GLuint texID[9]; // textures
   GLdouble matrix[16]; // used for mouse mapping
 
   double rot[3], off[3], scale; // global projection
@@ -563,6 +563,9 @@ static void drawMesh(PuglView* view, unsigned int index) {
 #include "textures/mm_rl.c"
 #include "textures/mm_mono.c"
 
+#include "textures/btn_inv.c"
+#include "textures/btn_link.c"
+
 #define CIMAGE(ID, VARNAME) \
   glGenTextures(1, &ui->texID[ID]); \
   glBindTexture(GL_TEXTURE_2D, ui->texID[ID]); \
@@ -597,6 +600,9 @@ static void initTextures(PuglView* view) {
   CIMAGE(4, mm_rr_image);
   CIMAGE(5, mm_rl_image);
   CIMAGE(6, mm_mono_image);
+
+  CIMAGE(7, btn_inv_image);
+  CIMAGE(8, btn_link_image);
 }
 
 
@@ -890,7 +896,8 @@ onDisplay(PuglView* view)
   const GLfloat mat_button[] = { 0.20, 0.20, 0.20, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
   const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
-  const GLfloat lamp_red[] =   {0.10, 0.40, 0.10, 1.0 };
+  const GLfloat lamp_blu[] =   {0.10, 0.10, 0.40, 1.0 };
+  const GLfloat lamp_grn[] =   {0.10, 0.40, 0.10, 1.0 };
   const GLfloat text_grn[] =   {0.10, 0.95, 0.15, 1.0};
   const GLfloat text_gry[] =   {0.75, 0.75, 0.75, 1.0};
   const GLfloat shadegry[] =   {0.1, 0.1, 0.1, 0.5};
@@ -975,7 +982,7 @@ onDisplay(PuglView* view)
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_button);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_button);
 	if (ui->ctrls[i].cur == ui->ctrls[i].max) {
-	  glMaterialfv(GL_FRONT, GL_EMISSION, lamp_red);
+	  glMaterialfv(GL_FRONT, GL_EMISSION, i > 2 ? lamp_grn : lamp_blu );
 	  glTranslatef(0.0, 0.0, .38);
 	  if (i == ui->hoverid) ui->hoverid = -1;
 	} else {
@@ -1400,15 +1407,15 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 
   CTRLELEM(0,  OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
 
-  CTRLELEM(1,  OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseL
-  CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseR
+  CTRLELEM(1,  OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseL
+  CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseR
 
   CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
   CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
 
   CTRLELEM(5,  OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
   CTRLELEM(6,  OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
-  CTRLELEM(12, OBJ_PUSHBUTTON, 0, 1, 0,  0, -1.0,  1.0, 1.0, 0.7, -1, NULL); // link
+  CTRLELEM(12, OBJ_PUSHBUTTON, 0, 1, 0,  0, -1.0,  1.0, 1.0, 0.7, 8, NULL); // link
 
   CTRLELEM(8,  OBJ_BUTTON, 0, 1, 0, -2.60, -3.10,  1.3, 2.0, .8, 3, NULL); // ll
   CTRLELEM(10, OBJ_BUTTON, 0, 1, 0, -1.30, -3.10,  1.3, 2.0, .8, 5, NULL); // mono
