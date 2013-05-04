@@ -1243,8 +1243,10 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
 	  ui->ctrls[i].cur = ui->ctrls[i].dfl;
 	  if (ui->link_delay && i == 5) {
 	    ui->ctrls[6].cur = ui->ctrls[6].dfl;
+	    notifyPlugin(view, 6);
 	  } else if (ui->link_delay && i == 6) {
 	    ui->ctrls[5].cur = ui->ctrls[5].dfl;
+	    notifyPlugin(view, 5);
 	  }
 	  notifyPlugin(view, i);
 	  puglPostRedisplay(view);
