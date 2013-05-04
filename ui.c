@@ -665,9 +665,9 @@ static void setupLight() {
   const GLfloat global_ambient[]  = { 0.2, 0.2, 0.2, 1.0 };
   glLightModelfv(GL_LIGHT_MODEL_AMBIENT, global_ambient);
   glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-#endif
   glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
   glEnable(GL_COLOR_MATERIAL);
+#endif
 
   glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT0);
