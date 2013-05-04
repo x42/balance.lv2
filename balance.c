@@ -35,6 +35,13 @@
 #define C_LEFT (0)
 #define C_RIGHT (1)
 
+#define SIGNUM(a) (a < 0 ? -1 : 1)
+#define SQUARE(a) ( (a) * (a) )
+
+#define MIN(a,b) ( (a) < (b) ? (a) : (b) )
+#define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+#define RAIL(v, min, max) (MIN((max), MAX((min), (v))))
+
 typedef enum {
 	BLC_TRIM   = 0,
 	BLC_PHASEL,
@@ -90,17 +97,22 @@ typedef struct {
 	int uicom_active;
 
 	/* peak hold */
-	int   p_peakcnt;
-	float p_peak_in[CHANNELS];
-	float p_peak_out[CHANNELS];
+	int     p_peakcnt;
+	float   p_peak_in[CHANNELS], p_peak_out[CHANNELS];
+	int     peak_integrate_pos, peak_integrate_max;
+	double *p_peak_inPi[CHANNELS], *p_peak_outPi[CHANNELS];
+	double  p_peak_inP[CHANNELS], p_peak_outP[CHANNELS];
+	double  p_peak_inM[CHANNELS], p_peak_outM[CHANNELS];
+
 	/* visible peak w/ falloff */
 	float p_vpeak_in[CHANNELS];
 	float p_vpeak_out[CHANNELS];
 
-	double p_phase_outP;
-	double p_phase_outN;
-	double p_phase_outLPF;
-	double p_phase_out;
+	int     phase_integrate_pos, phase_integrate_max;
+	double *p_phase_outPi, *p_phase_outNi;
+	double  p_phase_outP, p_phase_outN;
+	double  p_phase_outLPF;
+	double  p_phase_out;
 
 	/* peak hold */
 	float p_tme_in[CHANNELS];
@@ -109,10 +121,6 @@ typedef struct {
 	float p_max_out[CHANNELS];
 
 } BalanceControl;
-
-#define MIN(a,b) ( (a) < (b) ? (a) : (b) )
-#define MAX(a,b) ( (a) > (b) ? (a) : (b) )
-#define RAIL(v, min, max) (MIN((max), MAX((min), (v))))
 
 #define DLYWITHGAIN(GAIN) \
 	buffer[ self->w_ptr[chn] ] = input[pos]; \
@@ -285,7 +293,17 @@ static void reset_uicom(BalanceControl* self) {
 		self->p_phase_outP   = 0;
 		self->p_phase_outN   = 0;
 		self->p_phase_out    = 0;
+
+		memset(self->p_peak_inPi[i],  0, self->peak_integrate_max * sizeof(double));
+		memset(self->p_peak_outPi[i], 0, self->peak_integrate_max * sizeof(double));
+		self->p_peak_outP[i] = self->p_peak_inP[i] = 0;
+		self->p_peak_outM[i] = self->p_peak_inM[i] = 0;
 	}
+
+	memset(self->p_phase_outPi, 0, self->phase_integrate_max * sizeof(double));
+	memset(self->p_phase_outNi, 0, self->phase_integrate_max * sizeof(double));
+	self->peak_integrate_pos = self->phase_integrate_pos = 0;
+
 	self->p_peakcnt  = 0;
 }
 
@@ -363,6 +381,15 @@ run(LV2_Handle instance, uint32_t n_samples)
 			for (i=0; i < n_samples; ++i) {
 				const float ps = fabsf(self->input[c][i]);
 				if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
+
+			/* integrated level, peak */
+			const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
+			const double p_sig = SQUARE(self->input[c][i] + self->input[c][i]);
+			self->p_peak_inP[c] += p_sig - self->p_peak_inPi[c][pip];
+			self->p_peak_inPi[c][pip] = p_sig;
+			const float psm = self->p_peak_inP[c] / (double) self->peak_integrate_max;
+			if (psm > self->p_peak_inM[c]) self->p_peak_inM[c] = psm;
+
 			}
 		}
 	}
@@ -400,16 +427,31 @@ run(LV2_Handle instance, uint32_t n_samples)
 	/* output peak meter */
 	for (c=0; c < CHANNELS; ++c) {
 		for (i=0; i < n_samples; ++i) {
+			/* peak */
 			const float ps = fabsf(self->output[c][i]);
 			if (ps > self->p_peak_out[c]) self->p_peak_out[c] = ps;
+
+			/* integrated level, peak */
+			const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
+			const double p_sig = SQUARE(self->output[c][i] + self->output[c][i]);
+			self->p_peak_outP[c] += p_sig - self->p_peak_outPi[c][pip];
+			self->p_peak_outPi[c][pip] = p_sig;
+			const float psm = self->p_peak_outP[c] / (double) self->peak_integrate_max;
+			if (psm > self->p_peak_outM[c]) self->p_peak_outM[c] = psm;
 		}
 	}
+	self->peak_integrate_pos = (self->peak_integrate_pos + n_samples ) % self->peak_integrate_max;
+
 	/* output phase correlation -- simple version */
-#define SIGNUM(a) (a < 0 ? -1 : 1)
-#define SQUARE(a) ( (a) * (a) )
 	for (i=0; i < n_samples; ++i) {
-		self->p_phase_outP += SQUARE(self->output[C_LEFT][i] + self->output[C_RIGHT][i]);
-		self->p_phase_outN += SQUARE(self->output[C_LEFT][i] - self->output[C_RIGHT][i]);
+		const double p_pos = SQUARE(self->output[C_LEFT][i] + self->output[C_RIGHT][i]);
+		const double p_neg = SQUARE(self->output[C_LEFT][i] - self->output[C_RIGHT][i]);
+
+		self->p_phase_outP += p_pos - self->p_phase_outPi[self->phase_integrate_pos];
+		self->p_phase_outN += p_neg - self->p_phase_outNi[self->phase_integrate_pos];
+		self->p_phase_outPi[self->phase_integrate_pos] = p_pos;
+		self->p_phase_outNi[self->phase_integrate_pos] = p_neg;
+		self->phase_integrate_pos = (self->phase_integrate_pos + 1) % self->phase_integrate_max;
 	}
 
 /* peak hold */
@@ -431,7 +473,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 /* meter fall off */
 #define PKF(A,CHN,ID) \
 { \
-	float dbp = VALTODB(self->p_peak_##A[CHN]); \
+	float dbp = VALTODB(sqrt(self->p_peak_##A##M[CHN])); \
 	if (dbp > self->p_vpeak_##A[CHN]) { \
 		self->p_vpeak_##A[CHN] = dbp; \
 	} else { \
@@ -455,29 +497,35 @@ run(LV2_Handle instance, uint32_t n_samples)
 		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
 		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
-#define RMSF(A) sqrt( (A) / (float)ascnt)
-		const float phasdiv = self->p_phase_outP > self->p_phase_outN ? self->p_phase_outP : self->p_phase_outN;
-		float phase = 0;
-		if (phasdiv != 0) {
+#define RMSF(A) sqrt( (A) / (double)self->phase_integrate_max)
+		const double phasdiv = self->p_phase_outP > self->p_phase_outN ? self->p_phase_outP : self->p_phase_outN;
+		double phase = 0;
+		if (rint(phasdiv * 100000) != 0) {
 			phase = (RMSF(self->p_phase_outP) - RMSF(self->p_phase_outN)) / RMSF(fabs(phasdiv));
 		}
-		self->p_phase_outLPF += (phase - self->p_phase_outLPF) * .2;
+		//phase = asin(phase) / 1.57079632679489661923;
 
+
+#if 0
+		self->p_phase_outLPF += (phase - self->p_phase_outLPF) * .8;
 		if (fabs(self->p_phase_outLPF) > fabs(self->p_phase_out)) {
 			self->p_phase_out = self->p_phase_outLPF;
 		} else {
 			if (self->p_phase_out < .002) self->p_phase_out = 0;
 			else self->p_phase_out *= .96;
 		}
+#else
+		self->p_phase_out = phase;
+#endif
 
-		forge_kvcontrolmessage(&self->forge, &self->uris, PHASE_OUT, self->p_phase_outLPF);
+		forge_kvcontrolmessage(&self->forge, &self->uris, PHASE_OUT, self->p_phase_out);
 
 		self->p_peakcnt -= ascnt;
 		for (c=0; c < CHANNELS; ++c) {
 			self->p_peak_in[c] = -INFINITY;
 			self->p_peak_out[c] = -INFINITY;
-			self->p_phase_outP = 0;
-			self->p_phase_outN = 0;
+			self->p_peak_inM[c] = -INFINITY;
+			self->p_peak_outM[c] = -INFINITY;
 		}
 	}
 
@@ -531,12 +579,19 @@ instantiate(const LV2_Descriptor*     descriptor,
   map_balance_uris(self->map, &self->uris);
   lv2_atom_forge_init(&self->forge, self->map);
 
+	self->peak_integrate_max = .05 * rate;
+	self->phase_integrate_max = .5 * rate;
+
 	for (i=0; i < CHANNELS; ++i) {
 		self->c_amp[i] = 1.0;
 		self->c_dly[i] = 0;
 		self->r_ptr[i] = self->w_ptr[i] = 0;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
+		self->p_peak_inPi[i]  = malloc(self->peak_integrate_max * sizeof(double));
+		self->p_peak_outPi[i] = malloc(self->peak_integrate_max * sizeof(double));
 	}
+	self->p_phase_outPi = malloc(self->phase_integrate_max * sizeof(double));
+	self->p_phase_outNi = malloc(self->phase_integrate_max * sizeof(double));
 
 	self->uicom_active = 0;
 	self->c_monomode = 0;
@@ -603,6 +658,13 @@ connect_port(LV2_Handle instance,
 static void
 cleanup(LV2_Handle instance)
 {
+	BalanceControl* self = (BalanceControl*)instance;
+	for (int i=0; i < CHANNELS; ++i) {
+		free(self->p_peak_inPi[i]);
+		free(self->p_peak_outPi[i]);
+	}
+	free(self->p_phase_outPi);
+	free(self->p_phase_outNi);
 	free(instance);
 }
 
