@@ -792,8 +792,6 @@ peak_meter(PuglView* view,
   const GLfloat col_peak2[]    =   { 0.8, 0.5, 0.0, .9 }; // .95
   const GLfloat col_peak[]     =   { 1.0, 0.0, 0.0, .9 };
 
-  GLfloat const * col_hold;
-
   const float x0 = x-.09;
   const float x1 = x+.09;
   const float y0 = y;
@@ -817,18 +815,14 @@ peak_meter(PuglView* view,
   else if (level > .550) {
     unity_box2d(view, x0, x1, PKY(.550), y1, -.01, col_peak9);
     unity_box2d(view, x0, x1,        y0, PKY(.550), -.01, col_peak18);
-    col_hold = col_peak9;
   } else {
     unity_box2d(view, x0, x1,        y0, y1, -.01, col_peak18);
-    col_hold = col_peak18;
   }
 
   if (hold > 0.02) {
     const float phy = 17.04 * hold;
-    if (hold > .95)       col_hold = col_peak;
-    else if (hold > .775) col_hold = col_peak2;
-    else if (hold > .550) col_hold = col_peak9;
-    else                  col_hold = col_peak18;
+    GLfloat col_hold[] =  { 1.0, 1.0, 0.0, 1.0 };
+    if (hold >= 1.0) col_hold[1] = 0;
     unity_box2d(view, x0, x1, y - .066 + phy, y + phy, -.02, col_hold);
   }
 }
