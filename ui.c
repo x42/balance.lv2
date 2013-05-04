@@ -376,7 +376,7 @@ static void processMotion(PuglView* view, int elem, float dx, float dy) {
 
   switch (ui->ctrls[elem].type) {
     case OBJ_DIAL:
-      ui->ctrls[elem].cur = ui->dndval + dist * (ui->ctrls[elem].max - ui->ctrls[elem].min);
+      ui->ctrls[elem].cur = ui->dndval + dist * (1.0 + ui->ctrls[elem].max - ui->ctrls[elem].min);
       if (ui->ctrls[elem].max == 0) {
 	if (ui->ctrls[elem].cur > ui->ctrls[elem].max || ui->ctrls[elem].cur < ui->ctrls[elem].min) {
 	  const float r = (ui->ctrls[elem].max - ui->ctrls[elem].min);
@@ -442,7 +442,7 @@ static void processLinkedMotion(PuglView* view, int elem, float dx, float dy) {
     processMotion(view, elem, dx, dy);
     return;
   }
-  const float dist = dy * ui->dndscale * (ui->ctrls[elem].max - ui->ctrls[elem].min);
+  const float dist = dy * ui->dndscale * (1.0 + ui->ctrls[elem].max - ui->ctrls[elem].min);
   processLinkedMotion2(view, elem, dist);
 }
 
