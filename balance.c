@@ -37,6 +37,8 @@
 
 typedef enum {
 	BLC_TRIM   = 0,
+	BLC_PHASEL,
+	BLC_PHASER,
 	BLC_BALANCE,
 	BLC_UNIYGAIN,
 	BLC_DLYL,
@@ -61,6 +63,7 @@ typedef struct {
 
 	/* control ports */
 	float* trim;
+	float* phase[CHANNELS];
 	float* balance;
 	float* unitygain;
 	float* monomode;
@@ -353,6 +356,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 		}
 	}
 
+	if (*(self->phase[C_LEFT])) gain_left *=-1;
+	if (*(self->phase[C_RIGHT])) gain_right *=-1;
+
 	/* process audio -- delayline + balance & gain */
 	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
 	process_channel(self, gain_right * trim, C_RIGHT, n_samples);
@@ -439,13 +445,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	/* report values to UI - if changed*/
-	float bal = gain_to_db(gain_left);
+	float bal = gain_to_db(fabsf(gain_left));
 	if (bal != self->p_bal[C_LEFT]) {
 		forge_kvcontrolmessage(&self->forge, &self->uris, GAIN_LEFT, bal);
 	}
 	self->p_bal[C_LEFT] = bal;
 
-	bal = gain_to_db(gain_right);
+	bal = gain_to_db(fabsf(gain_right));
 	if (bal != self->p_bal[C_RIGHT]) {
 		forge_kvcontrolmessage(&self->forge, &self->uris, GAIN_RIGHT, bal);
 	}
@@ -514,6 +520,12 @@ connect_port(LV2_Handle instance,
 	switch ((PortIndex)port) {
 	case BLC_TRIM:
 		self->trim = data;
+		break;
+	case BLC_PHASEL:
+		self->phase[C_LEFT] = data;
+		break;
+	case BLC_PHASER:
+		self->phase[C_RIGHT] = data;
 		break;
 	case BLC_BALANCE:
 		self->balance = data;

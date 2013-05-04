@@ -81,7 +81,7 @@ static inline int MOUSEIN(
 }
 
 /* total number of interactive objects */
-#define TOTAL_OBJ (11)
+#define TOTAL_OBJ (13)
 
 typedef struct {
   int type; // type ID from ui_model.h
@@ -334,9 +334,9 @@ static float iec_scale(float db) {
 
 static void rmap_val(PuglView* view, const int elem, const float val) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  if (elem > 4 && elem < 10) {
-    int pb = val + 5;
-    for (int i=5; i < 10; ++i) {
+  if (elem > 6 && elem < 12) {
+    int pb = val + 7;
+    for (int i=7; i < 12; ++i) {
       if (i==pb) {
 	ui->ctrls[i].cur = ui->ctrls[i].max;
       } else {
@@ -366,16 +366,16 @@ static float vmap_val(PuglView* view, const int elem) {
 /* notify lv2 plugin about changed value */
 static void notifyPlugin(PuglView* view, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  if (elem > 4 && elem < 10) {
+  if (elem > 6 && elem < 12) {
     /* push/radio button special */
-    for (int i=5; i < 10; ++i) {
+    for (int i=7; i < 12; ++i) {
       if (i==elem)
 	ui->ctrls[i].cur = ui->ctrls[i].max;
       else
 	ui->ctrls[i].cur = ui->ctrls[i].min;
     }
-    const float val = elem - 5;
-    ui->write(ui->controller, 5, sizeof(float), 0, (const void*)&val);
+    const float val = elem - 7;
+    ui->write(ui->controller, 7, sizeof(float), 0, (const void*)&val);
     return;
   } else {
     const float val = vmap_val(view, elem);
@@ -421,7 +421,7 @@ static void processMotion(PuglView* view, int elem, float dx, float dy) {
 
 static void processLinkedMotion2(PuglView* view, int elem, float dist) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  const int linked = (elem == 4) ? 3 : 4;
+  const int linked = (elem == 6) ? 5 : 6;
   const float oldval = vmap_val(view, elem);
   const float oldval2 = vmap_val(view, linked);
 
@@ -459,7 +459,7 @@ static void processLinkedMotion2(PuglView* view, int elem, float dist) {
 
 static void processLinkedMotion(PuglView* view, int elem, float dx, float dy) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  if (!ui->link_delay || (elem != 3 && elem != 4)) {
+  if (!ui->link_delay || (elem != 5 && elem != 6)) {
     processMotion(view, elem, dx, dy);
     return;
   }
@@ -989,16 +989,16 @@ onDisplay(PuglView* view)
 
   /* value info */
   sprintf(tval, "%+02.1fdB", ui->p_bal[0]);
-  render_text(view, tval, -1.30, ui->ctrls[1].y + 1.1, -0.01f, 1, text_grn);
+  render_text(view, tval, -1.30, ui->ctrls[3].y + 1.1, -0.01f, 1, text_grn);
 
   sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
-  render_text(view, tval,  1.30, ui->ctrls[1].y + 1.1, -0.01f, 1, text_grn);
+  render_text(view, tval,  1.30, ui->ctrls[3].y + 1.1, -0.01f, 1, text_grn);
 
   sprintf(tval, "%.1fms", ui->p_dly[0]);
-  render_text(view, tval, -1.00, ui->ctrls[3].y - .3, -0.01f, 1, text_grn);
+  render_text(view, tval, -1.00, ui->ctrls[5].y - .3, -0.01f, 1, text_grn);
 
   sprintf(tval, "%.1fms", ui->p_dly[1]);
-  render_text(view, tval,  1.00, ui->ctrls[3].y - .3, -0.01f, 1, text_grn);
+  render_text(view, tval,  1.00, ui->ctrls[5].y - .3, -0.01f, 1, text_grn);
 
 
   peak_meter(view, -4.76, ui->p_mtr_in[0], ui->p_peak_in[0]);
@@ -1009,7 +1009,7 @@ onDisplay(PuglView* view)
 
   if (1) {
     unity_box2d(view, -3.55, -1.45, .7, 1.8, 0, shadegry);
-    switch((int) vmap_val(view, 2)) {
+    switch((int) vmap_val(view, 4)) {
       case 1:
 	render_text(view, "maintain",   -2.5, 1.3, -0.01f, 4, text_gry);
 	render_text(view, "amplitude",  -2.5, 0.9, -0.01f, 4, text_gry);
@@ -1134,8 +1134,8 @@ onScroll(PuglView* view, int x, int y, float dx, float dy)
       } else if ((ui->ctrls[i].max - ui->ctrls[i].min) <= 2) {
 	/* -1..+1 float dial */
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy) * .01;
-      } else if (ui->link_delay && (i == 3 || i == 4)) {
-	const int linked = (i == 4) ? 3 : 4;
+      } else if (ui->link_delay && (i == 5 || i == 6)) {
+	const int linked = (i == 6) ? 5 : 6;
 	ui->dndval = ui->ctrls[i].cur;
 	ui->dndval2 = ui->ctrls[linked].cur;
 	processLinkedMotion2(view, i, SIGNUM(dy));
@@ -1207,10 +1207,10 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
       case OBJ_DIAL:
 	if (puglGetModifiers(view) & PUGL_MOD_SHIFT) {
 	  ui->ctrls[i].cur = ui->ctrls[i].dfl;
-	  if (ui->link_delay && i == 3) {
-	    ui->ctrls[4].cur = ui->ctrls[4].dfl;
-	  } else if (ui->link_delay && i == 4) {
-	    ui->ctrls[3].cur = ui->ctrls[3].dfl;
+	  if (ui->link_delay && i == 5) {
+	    ui->ctrls[6].cur = ui->ctrls[6].dfl;
+	  } else if (ui->link_delay && i == 6) {
+	    ui->ctrls[5].cur = ui->ctrls[5].dfl;
 	  }
 	  notifyPlugin(view, i);
 	  puglPostRedisplay(view);
@@ -1220,10 +1220,10 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
 	  ui->dndy = fy;
 	  ui->dndval = ui->ctrls[i].cur;
 
-	  if (ui->link_delay && i == 3) {
-	    ui->dndval2 = ui->ctrls[4].cur;
-	  } else if (ui->link_delay && i == 4) {
-	    ui->dndval2 = ui->ctrls[3].cur;
+	  if (ui->link_delay && i == 5) {
+	    ui->dndval2 = ui->ctrls[6].cur;
+	  } else if (ui->link_delay && i == 6) {
+	    ui->dndval2 = ui->ctrls[5].cur;
 	  }
 	}
 	break;
@@ -1233,7 +1233,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
 	  ui->ctrls[i].cur = ui->ctrls[i].min;
 	else
 	  ui->ctrls[i].cur = ui->ctrls[i].max;
-	if (i==10) {
+	if (i==12) {
 	  ui->link_delay = !ui->link_delay;
 	} else {
 	  notifyPlugin(view, i);
@@ -1362,18 +1362,21 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 
   CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
 
-  CTRLELEM(1, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
-  CTRLELEM(2, OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
+  CTRLELEM(1, OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseL
+  CTRLELEM(2, OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseR
 
-  CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
-  CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
-  CTRLELEM(10, OBJ_PUSHBUTTON, 0, 1, 0,  0, -1.0,  1.0, 1.0, 0.7, -1, NULL); // link
+  CTRLELEM(3, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
+  CTRLELEM(4, OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
 
-  CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3, NULL); // ll
-  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5, NULL); // mono
-  CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2, NULL); // lr
-  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6, NULL); // rl
-  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4, NULL); // rr
+  CTRLELEM(5, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
+  CTRLELEM(6, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
+  CTRLELEM(12, OBJ_PUSHBUTTON, 0, 1, 0,  0, -1.0,  1.0, 1.0, 0.7, -1, NULL); // link
+
+  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3, NULL); // ll
+  CTRLELEM(10, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5, NULL); // mono
+  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2, NULL); // lr
+  CTRLELEM(11, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6, NULL); // rl
+  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4, NULL); // rr
 
 
 #ifdef OLD_SUIL
@@ -1399,7 +1402,7 @@ static void forge_message_str(BLCui* ui, LV2_URID uri, const char *key) {
     lv2_atom_forge_string(&ui->forge, key, strlen(key));
   }
   lv2_atom_forge_pop(&ui->forge, &set_frame);
-  ui->write(ui->controller, 10, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
+  ui->write(ui->controller, 12, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
 }
 
 /******************************************************************************
