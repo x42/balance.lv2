@@ -1034,6 +1034,8 @@ onDisplay(PuglView* view)
       unity_box2d(view, 0, 3.0 * ui->p_phase_out, -8.871, -8.725, -.01, col_pos);
     } else if (ui->p_phase_out < 0) {
       unity_box2d(view, 3.0 * ui->p_phase_out, 0, -8.871, -8.725, -.01, col_neg);
+    } else {
+      unity_box2d(view, -.03, .03, -8.871, -8.725, -.01, col_pos);
     }
   }
 

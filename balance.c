@@ -111,8 +111,6 @@ typedef struct {
 	int     phase_integrate_pos, phase_integrate_max;
 	double *p_phase_outPi, *p_phase_outNi;
 	double  p_phase_outP, p_phase_outN;
-	double  p_phase_outLPF;
-	double  p_phase_out;
 
 	/* peak hold */
 	float p_tme_in[CHANNELS];
@@ -289,10 +287,8 @@ static void reset_uicom(BalanceControl* self) {
 		self->p_bal[i] = INFINITY;
 		self->p_dly[i] = -1;
 
-		self->p_phase_outLPF = 0;
 		self->p_phase_outP   = 0;
 		self->p_phase_outN   = 0;
-		self->p_phase_out    = 0;
 
 		memset(self->p_peak_inPi[i],  0, self->peak_integrate_max * sizeof(double));
 		memset(self->p_peak_outPi[i], 0, self->peak_integrate_max * sizeof(double));
@@ -497,26 +493,24 @@ run(LV2_Handle instance, uint32_t n_samples)
 		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
 		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
-#define RMSF(A) sqrt( ((A) / (double)self->phase_integrate_max) + 1.0e-23)
-		const double phasdiv = self->p_phase_outP + self->p_phase_outN;
 		double phase = 0;
-		if (rint(phasdiv * 100000.0) != 0) {
-			phase = (RMSF(self->p_phase_outP) - RMSF(self->p_phase_outN)) / RMSF(phasdiv);
+		switch ((int) *self->monomode) {
+			case 1:
+			case 2:
+			case 4:
+				/* mono modes - no phase */
+				break;
+			default:
+				{
+#define RMSF(A) sqrt( ( (A) / (double)self->phase_integrate_max ) + 1.0e-23 )
+					const double phasdiv = self->p_phase_outP + self->p_phase_outN;
+					if (rint(phasdiv * 100000.0) != 0) {
+						phase = (RMSF(self->p_phase_outP) - RMSF(self->p_phase_outN)) / RMSF(phasdiv);
+					}
+				}
 		}
 
-#if 0
-		self->p_phase_outLPF += (phase - self->p_phase_outLPF) * .8;
-		if (fabs(self->p_phase_outLPF) > fabs(self->p_phase_out)) {
-			self->p_phase_out = self->p_phase_outLPF;
-		} else {
-			if (self->p_phase_out < .002) self->p_phase_out = 0;
-			else self->p_phase_out *= .96;
-		}
-#else
-		self->p_phase_out = phase;
-#endif
-
-		forge_kvcontrolmessage(&self->forge, &self->uris, PHASE_OUT, self->p_phase_out);
+		forge_kvcontrolmessage(&self->forge, &self->uris, PHASE_OUT, phase);
 
 		self->p_peakcnt -= ascnt;
 		for (c=0; c < CHANNELS; ++c) {
