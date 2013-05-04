@@ -308,34 +308,10 @@ static void project_mouse(PuglView* view, int mx, int my, float *x, float *y) {
  * Value mapping
  */
 
-static float iec_scale(float db) {
-	 float def = 0.0f;
-
-	 if (db < -70.0f) {
-		 def = 0.0f;
-	 } else if (db < -60.0f) {
-		 def = (db + 70.0f) * 0.25f;
-	 } else if (db < -50.0f) {
-		 def = (db + 60.0f) * 0.5f + 2.5f;
-	 } else if (db < -40.0f) {
-		 def = (db + 50.0f) * 0.75f + 7.5;
-	 } else if (db < -30.0f) {
-		 def = (db + 40.0f) * 1.5f + 15.0f;
-	 } else if (db < -20.0f) {
-		 def = (db + 30.0f) * 2.0f + 30.0f;
-	 } else if (db < 0.0f) {
-		 def = (db + 20.0f) * 2.5f + 50.0f;
-	 } else if (db < 6.0f) {
-		 def = db + 100.f;
-	 } else  {
-		 def = 106.0f;
-	 }
-	 return def;
-}
-
 static void rmap_val(PuglView* view, const int elem, const float val) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (elem > 6 && elem < 12) {
+    /* map routing buttons to single control port */
     int pb = val + 7;
     for (int i=7; i < 12; ++i) {
       if (i==pb) {
@@ -346,7 +322,7 @@ static void rmap_val(PuglView* view, const int elem, const float val) {
     }
     return;
   }
-
+  /* 1:1 mapping of other controls */
   if (ui->ctrls[elem].max == 0) {
     ui->ctrls[elem].cur = ui->ctrls[elem].min + rint(val);
   } else {
@@ -383,6 +359,7 @@ static void notifyPlugin(PuglView* view, int elem) {
     ui->write(ui->controller, elem, sizeof(float), 0, (const void*)&val);
   }
 }
+
 static float check_rail(PuglView* view, int elem, float val) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (val > ui->ctrls[elem].max) return (ui->ctrls[elem].max - val);
@@ -420,6 +397,7 @@ static void processMotion(PuglView* view, int elem, float dx, float dy) {
   }
 }
 
+/* quick hack -- linked delay controls */
 static void processLinkedMotion2(PuglView* view, int elem, float dist) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   const int linked = (elem == 6) ? 5 : 6;
@@ -468,6 +446,10 @@ static void processLinkedMotion(PuglView* view, int elem, float dx, float dy) {
   processLinkedMotion2(view, elem, dist);
 }
 
+/******************************************************************************
+ * format values
+ */
+
 void dialfmt_trim(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%+02.1fdB", ui->ctrls[elem].cur);
@@ -488,6 +470,31 @@ void dialfmt_balance(PuglView* view, char* out, int elem) {
 void dialfmt_delay(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%.0fsm", ui->ctrls[elem].cur);
+}
+
+static float iec_scale(float db) {
+	 float def = 0.0f;
+
+	 if (db < -70.0f) {
+		 def = 0.0f;
+	 } else if (db < -60.0f) {
+		 def = (db + 70.0f) * 0.25f;
+	 } else if (db < -50.0f) {
+		 def = (db + 60.0f) * 0.5f + 2.5f;
+	 } else if (db < -40.0f) {
+		 def = (db + 50.0f) * 0.75f + 7.5;
+	 } else if (db < -30.0f) {
+		 def = (db + 40.0f) * 1.5f + 15.0f;
+	 } else if (db < -20.0f) {
+		 def = (db + 30.0f) * 2.0f + 30.0f;
+	 } else if (db < 0.0f) {
+		 def = (db + 20.0f) * 2.5f + 50.0f;
+	 } else if (db < 6.0f) {
+		 def = db + 100.f;
+	 } else  {
+		 def = 106.0f;
+	 }
+	 return def;
 }
 
 /******************************************************************************
@@ -633,6 +640,7 @@ static void setupOpenGL() {
   glHint(GL_FOG_HINT, GL_NICEST);
 
   //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // test & debug
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 static void setupLight() {
@@ -792,23 +800,7 @@ peak_meter(PuglView* view,
     const float phy = 17.04 * hold;
     unity_box2d(view, x0, x1, y - .066 + phy, y + phy, -.02, col_hold);
   }
-#if 0
-  if (level < .5) {
-    const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 0.9 };
-    GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 0.9 };
-    col_peak[1] = level / .5;
-    col_peak[2] = 1.0 - col_peak[1];
-    gradient_box2d(view, x0, x1, y0, y1, -.01, col_base, col_peak);
-  } else {
-    const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 0.9 };
-    const GLfloat col_mid[]  =   { 0.0, 1.0, 0.0, 0.9 };
-    GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 0.9 };
-    col_peak[0] = (level-.5) / .56;
-    col_peak[1] = 1.0 - col_peak[0];
-    gradient_box2d(view, x0, x1, y0, y+ 17.04 * .5, -.01, col_base, col_mid);
-    gradient_box2d(view, x0, x1, y+ 17.04 * .5, y1, -.01, col_mid, col_peak);
-  }
-#elif 1
+
   // green up to -18, lighter green to -9, orange to -2, red to 0
   GLfloat col_peak18[]   =   { 0.0, 0.5, 0.0, .9 }; // .55
   GLfloat col_peak9[]    =   { 0.0, 0.9, 0.0, .9 }; // .775
@@ -833,13 +825,6 @@ peak_meter(PuglView* view,
   } else {
     unity_box2d(view, x0, x1,        y0, y1, -.01, col_peak18);
   }
-#else
-  const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 1.0 };
-  GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 1.0 };
-  col_peak[0] = level / 1.06;
-  col_peak[2] = 1.0 - col_peak[0];
-  gradient_box2d(view, x0, x1, y0, y1, -.01, col_base, col_peak);
-#endif
 }
 
 
@@ -905,7 +890,7 @@ onDisplay(PuglView* view)
   if (!ui->initialized) {
     /* initialization needs to happen from event context
      * after pugl set glXMakeCurrent() - this /should/ otherwise
-     * be done during initialization()
+     * be done during instantiate()
      */
     ui->initialized = 1;
     setupOpenGL();
@@ -918,7 +903,7 @@ onDisplay(PuglView* view)
   }
 
   /** step 1 - draw background -- fixed objects **/
-#if 1
+
   glPushMatrix();
   glLoadIdentity();
   const float bgaspect = (float) ui->height / (float) ui->width / 2.0;
@@ -938,7 +923,7 @@ onDisplay(PuglView* view)
 
   glDisable(GL_TEXTURE_2D);
   glPopMatrix();
-#endif
+
   /** step 2 - draw /movable/ objects **/
 
   /* base material of moveable objects */
@@ -1052,7 +1037,7 @@ onDisplay(PuglView* view)
     }
   }
 
-  if (1) { /* balance mode */
+  if (1) { /* balance mode info */
     unity_box2d(view, -3.55, -1.45, .7, 1.8, 0, shadegry);
     switch((int) vmap_val(view, 4)) {
       case 1:
@@ -1069,6 +1054,7 @@ onDisplay(PuglView* view)
 	break;
     }
   }
+
   if (1) { /* imprint */
     glPushMatrix();
     glLoadIdentity();
@@ -1180,6 +1166,7 @@ onScroll(PuglView* view, int x, int y, float dx, float dy)
 	/* -1..+1 float dial */
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy) * .01;
       } else if (ui->link_delay && (i == 5 || i == 6)) {
+	/* delay lengths when linked */
 	const int linked = (i == 6) ? 5 : 6;
 	ui->dndval = ui->ctrls[i].cur;
 	ui->dndval2 = ui->ctrls[linked].cur;
@@ -1218,7 +1205,6 @@ onMotion(PuglView* view, int x, int y)
   }
 
   processLinkedMotion(view, ui->dndid, fx - ui->dndx, fy - ui->dndy);
-
 }
 
 static void
@@ -1251,6 +1237,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
     switch (ui->ctrls[i].type) {
       case OBJ_DIAL:
 	if (puglGetModifiers(view) & PUGL_MOD_SHIFT) {
+	  /* reset to default value */
 	  ui->ctrls[i].cur = ui->ctrls[i].dfl;
 	  if (ui->link_delay && i == 5) {
 	    ui->ctrls[6].cur = ui->ctrls[6].dfl;
