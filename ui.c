@@ -644,7 +644,7 @@ static void setupOpenGL() {
 }
 
 static void setupLight() {
-  const GLfloat light0_ambient[]  = { 0.2, 0.15, 0.1, 0.0 };
+  const GLfloat light0_ambient[]  = { 0.2, 0.15, 0.1, 1.0 };
   const GLfloat light0_diffuse[]  = { 1.0, 1.0, 1.0, 1.0 };
   const GLfloat light0_specular[] = { 0.4, 0.4, 0.9, 1.0 };
   const GLfloat light0_position[] = {  1.0, -2.5, -10.0, 0 };
@@ -665,7 +665,6 @@ static void setupLight() {
   const GLfloat global_ambient[]  = { 0.2, 0.2, 0.2, 1.0 };
   glLightModelfv(GL_LIGHT_MODEL_AMBIENT, global_ambient);
   glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-  glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
   glEnable(GL_COLOR_MATERIAL);
 #endif
 
@@ -872,7 +871,7 @@ onDisplay(PuglView* view)
   char tval[16];
   BLCui* ui = (BLCui*)puglGetHandle(view);
 
-  const GLfloat no_mat[] = { 0.0, 0.0, 0.0, 0.0 };
+  const GLfloat no_mat[] = { 0.0, 0.0, 0.0, 1.0 };
   const GLfloat mat_specular[] = { 1.0, 1.0, 1.0, 1.0 };
   const GLfloat no_shininess[] = { 128.0 };
   const GLfloat high_shininess[] = { 5.0 };
@@ -881,7 +880,7 @@ onDisplay(PuglView* view)
   const GLfloat mat_dial[] =   { 0.10, 0.10, 0.10, 1.0 };
   const GLfloat mat_button[] = { 0.20, 0.20, 0.20, 1.0 };
   const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
-  const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.5 };
+  const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
   const GLfloat lamp_blu[] =   {0.10, 0.10, 0.40, 1.0 };
   const GLfloat lamp_grn[] =   {0.10, 0.40, 0.10, 1.0 };
   const GLfloat text_grn[] =   {0.10, 0.95, 0.15, 1.0};
@@ -940,7 +939,7 @@ onDisplay(PuglView* view)
 
     switch(ui->ctrls[i].type) {
       case OBJ_DIAL:
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, no_mat);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_dial);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_dial);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_mat);
 	if (ui->ctrls[i].max == 0) {
@@ -954,7 +953,7 @@ onDisplay(PuglView* view)
 	}
 	break;
       case OBJ_SWITCH:
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, no_mat);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_switch);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_switch);
 	if (ui->ctrls[i].cur == ui->ctrls[i].max) {
 	  glMaterialfv(GL_FRONT, GL_EMISSION, glow_red);
@@ -965,7 +964,7 @@ onDisplay(PuglView* view)
 	break;
       case OBJ_BUTTON:
       case OBJ_PUSHBUTTON:
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, no_mat);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_button);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_button);
 	if (ui->ctrls[i].cur == ui->ctrls[i].max) {
 	  glMaterialfv(GL_FRONT, GL_EMISSION, i > 2 ? lamp_grn : lamp_blu );
