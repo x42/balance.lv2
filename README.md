@@ -11,6 +11,10 @@ delaying the signals (move away from the microphone).
 To round off the feature-set channels can be swapped or the signal can be
 downmixed to mono after the delay.
 
+It features a Phase-Correlation meter as well as peak programme meters
+according to IEC 60268-18 (5ms integration, 20dB/1.5 sec fall-off)
+for input and output signals.
+
 Install
 -------
 
@@ -23,6 +27,8 @@ fonts-freefont-ttf (or any other .ttf font).
   cd balance.lv2
   make
   sudo make install PREFIX=/usr
+  
+  # test run
   jalv.gtk http://gareus.org/oss/lv2/balance
 ```
 
@@ -41,6 +47,8 @@ be automated or changed dynamically without introducing clicks.
 
 Simple gain stage to amplify or attenuate the signal by at most 20dB.
 This knob equally affects both channels.
+
+This stage also allows to individually invert the phase of each channel.
 
 ### Balance
 
