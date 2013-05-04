@@ -805,7 +805,7 @@ peak_meter(PuglView* view,
   //ie green up to -18, lighter green to -10, orange to -2, red to 0
   GLfloat col_peak18[]   =   { 0.0, 0.5, 0.0, 1.0 };  // .55
   GLfloat col_peak10[]   =   { 0.0, 0.9, 0.0, 1.0 };  // .75
-  GLfloat col_peak2[]    =   { 0.8, 0.8, 0.0, 1.0 };  // .95
+  GLfloat col_peak2[]    =   { 0.8, 0.5, 0.0, 1.0 };  // .95
   GLfloat col_peak[]     =   { 1.0, 0.0, 0.0, 1.0 };
 
 #define PKY(V) (y + 17.04 * V)
