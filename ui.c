@@ -576,8 +576,8 @@ static void drawMesh(PuglView* view, unsigned int index) {
 #define CIMAGE(ID, VARNAME) \
   glGenTextures(1, &ui->texID[ID]); \
   glBindTexture(GL_TEXTURE_2D, ui->texID[ID]); \
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); \
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER); \
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); \
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); \
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_BORDER); \
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); \
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); \
@@ -640,7 +640,6 @@ static void setupOpenGL() {
   glHint(GL_FOG_HINT, GL_NICEST);
 
   //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // test & debug
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 static void setupLight() {
@@ -916,6 +915,7 @@ onDisplay(PuglView* view)
   glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_mat);
 
   glEnable(GL_TEXTURE_2D);
+  glBlendFunc(GL_SRC_ALPHA, GL_ZERO);
   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
   glBindTexture(GL_TEXTURE_2D, ui->texID[0]);
 
