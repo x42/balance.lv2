@@ -31,6 +31,7 @@
 #define FADE_LEN (64)
 #define METER_FALLOFF (13.3) // dB/sec
 #define UPDATE_FREQ (30.0) //  Hz
+#define PEAK_HOLD_TIME (2.0) //  seconds
 
 #define C_LEFT (0)
 #define C_RIGHT (1)
@@ -313,7 +314,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
-	const int pkhld = 2.0 * UPDATE_FREQ;
+	const int pkhld = PEAK_HOLD_TIME * UPDATE_FREQ;
 	const int ascnt = self->samplerate / UPDATE_FREQ;
 
   const uint32_t capacity = self->notify->atom.size;
