@@ -81,7 +81,7 @@ static inline int MOUSEIN(
 }
 
 /* total number of interactive objects */
-#define TOTAL_OBJ (10)
+#define TOTAL_OBJ (11)
 
 typedef struct {
   int type; // type ID from ui_model.h
@@ -126,7 +126,7 @@ typedef struct {
   /* mouse drag status */
   int dndid;
   float dndscale;
-  float dndval;
+  float dndval, dndval2;
   float dndx, dndy;
   int hoverid;
 
@@ -136,6 +136,8 @@ typedef struct {
   float p_mtr_out[2];
   float p_peak_in[2];
   float p_peak_out[2];
+
+  int link_delay;
 
   FTGLfont *font_small;
 } BLCui;
@@ -380,12 +382,17 @@ static void notifyPlugin(PuglView* view, int elem) {
     ui->write(ui->controller, elem, sizeof(float), 0, (const void*)&val);
   }
 }
+static float check_rail(PuglView* view, int elem, float val) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  if (val > ui->ctrls[elem].max) return (ui->ctrls[elem].max - val);
+  else if (val < ui->ctrls[elem].min) return (ui->ctrls[elem].min - val);
+  return 0;
+}
 
 /* process mouse motion, update value */
 static void processMotion(PuglView* view, int elem, float dx, float dy) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (elem < 0 || elem >= TOTAL_OBJ) return;
-  //const float dist = (fabs(dy) > fabs(dx) ? dy: dx);
   const float dist = dy * ui->dndscale;
   const float oldval = vmap_val(view, elem);
 
@@ -410,6 +417,54 @@ static void processMotion(PuglView* view, int elem, float dx, float dy) {
     puglPostRedisplay(view);
     notifyPlugin(view, elem);
   }
+}
+
+static void processLinkedMotion2(PuglView* view, int elem, float dist) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  const int linked = (elem == 4) ? 3 : 4;
+  const float oldval = vmap_val(view, elem);
+  const float oldval2 = vmap_val(view, linked);
+
+  float newval = ui->dndval + dist;
+  float newval2 = ui->dndval2 + dist;
+  int rails = 0;
+  float diff;
+
+  if ((diff=check_rail(view, elem, newval)) != 0) {
+    newval += diff;
+    newval2 += diff;
+    rails |= 1;
+  }
+  if ((diff=check_rail(view, linked, newval2)) != 0) {
+    float diff = check_rail(view, linked, newval2);
+    newval += diff;
+    newval2 += diff;
+    rails |= 2;
+  }
+  if (rails == 3) return;
+
+  ui->ctrls[elem].cur = newval;
+  ui->ctrls[linked].cur =  newval2;
+
+  puglPostRedisplay(view);
+  if (vmap_val(view, elem) != oldval) {
+    puglPostRedisplay(view);
+    notifyPlugin(view, elem);
+  }
+  if (vmap_val(view, linked) != oldval2) {
+    puglPostRedisplay(view);
+    notifyPlugin(view, linked);
+  }
+}
+
+static void processLinkedMotion(PuglView* view, int elem, float dx, float dy) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  if (!ui->link_delay || (elem != 3 && elem != 4)) {
+    processMotion(view, elem, dx, dy);
+    return;
+  }
+  const float dist = dy * ui->dndscale * (ui->ctrls[elem].max - ui->ctrls[elem].min);
+  processLinkedMotion2(view, elem, dist);
 }
 
 void dialfmt_trim(PuglView* view, char* out, int elem) {
@@ -1079,6 +1134,12 @@ onScroll(PuglView* view, int x, int y, float dx, float dy)
       } else if ((ui->ctrls[i].max - ui->ctrls[i].min) <= 2) {
 	/* -1..+1 float dial */
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy) * .01;
+      } else if (ui->link_delay && (i == 3 || i == 4)) {
+	const int linked = (i == 4) ? 3 : 4;
+	ui->dndval = ui->ctrls[i].cur;
+	ui->dndval2 = ui->ctrls[linked].cur;
+	processLinkedMotion2(view, i, SIGNUM(dy));
+	return;
       } else {
 	ui->dndval = ui->ctrls[i].cur + SIGNUM(dy);
       }
@@ -1111,7 +1172,8 @@ onMotion(PuglView* view, int x, int y)
     return;
   }
 
-  processMotion(view, ui->dndid, fx - ui->dndx, fy - ui->dndy);
+  processLinkedMotion(view, ui->dndid, fx - ui->dndx, fy - ui->dndy);
+
 }
 
 static void
@@ -1145,6 +1207,11 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
       case OBJ_DIAL:
 	if (puglGetModifiers(view) & PUGL_MOD_SHIFT) {
 	  ui->ctrls[i].cur = ui->ctrls[i].dfl;
+	  if (ui->link_delay && i == 3) {
+	    ui->ctrls[4].cur = ui->ctrls[4].dfl;
+	  } else if (ui->link_delay && i == 4) {
+	    ui->ctrls[3].cur = ui->ctrls[3].dfl;
+	  }
 	  notifyPlugin(view, i);
 	  puglPostRedisplay(view);
 	} else {
@@ -1152,18 +1219,28 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
 	  ui->dndx = fx;
 	  ui->dndy = fy;
 	  ui->dndval = ui->ctrls[i].cur;
+
+	  if (ui->link_delay && i == 3) {
+	    ui->dndval2 = ui->ctrls[4].cur;
+	  } else if (ui->link_delay && i == 4) {
+	    ui->dndval2 = ui->ctrls[3].cur;
+	  }
 	}
 	break;
+      case OBJ_PUSHBUTTON:
       case OBJ_SWITCH:
 	if (ui->ctrls[i].cur == ui->ctrls[i].max)
 	  ui->ctrls[i].cur = ui->ctrls[i].min;
 	else
 	  ui->ctrls[i].cur = ui->ctrls[i].max;
-	notifyPlugin(view, i);
+	if (i==10) {
+	  ui->link_delay = !ui->link_delay;
+	} else {
+	  notifyPlugin(view, i);
+	}
 	puglPostRedisplay(view);
 	break;
       case OBJ_BUTTON:
-      case OBJ_PUSHBUTTON:
 	notifyPlugin(view, i);
 	puglPostRedisplay(view);
 	break;
@@ -1223,8 +1300,10 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   ui->hoverid    = -1;
   ui->dndscale   = 1.0;
   ui->dndval     = 0.0;
+  ui->dndval2    = 0.0;
   ui->dndx       = 0.0;
   ui->dndy       = 0.0;
+  ui->link_delay = 0;
 
   ui->p_bal[0] = ui->p_bal[1] = 0;
   ui->p_dly[0] = ui->p_dly[1] = 0;
@@ -1288,12 +1367,14 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 
   CTRLELEM(3, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
   CTRLELEM(4, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
+  CTRLELEM(10, OBJ_PUSHBUTTON, 0, 1, 0,  0, -1.0,  1.0, 1.0, 0.7, -1, NULL); // link
 
   CTRLELEM(6, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3, NULL); // ll
   CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5, NULL); // mono
   CTRLELEM(5, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2, NULL); // lr
   CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6, NULL); // rl
   CTRLELEM(7, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4, NULL); // rr
+
 
 #ifdef OLD_SUIL
   ui->exit = false;
