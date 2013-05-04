@@ -29,7 +29,7 @@
 #define CHANNELS (2)
 
 #define FADE_LEN (64)
-#define METER_FALLOFF (20.0) // dB/sec
+#define METER_FALLOFF (13.3) // dB/sec
 #define UPDATE_FREQ (30.0) //  Hz
 
 #define C_LEFT (0)
