@@ -1033,19 +1033,19 @@ onDisplay(PuglView* view)
   peak_meter(view,  4.462, ui->p_mtr_out[0], ui->p_peak_out[0]);
   peak_meter(view,  4.76, ui->p_mtr_out[1], ui->p_peak_out[1]);
 
-  if (1) {
+  if (1) { /* phase meter */
     const GLfloat col_black[] =  { 0.0, 0.0, 0.0, 0.5 };
-    const GLfloat col_pos[] =    { 0.0, 1.0, 0.0, 1.0 };
-    const GLfloat col_neg[] =    { 1.0, 0.0, 0.0, 1.0 };
-    unity_box2d(view, -3.0, 3.0, -9.4, -9.2, 0, col_black);
+    const GLfloat col_pos[] =    { 0.0, 1.0, 0.0, 0.9 };
+    const GLfloat col_neg[] =    { 1.0, 0.0, 0.0, 0.9 };
+    unity_box2d(view, -3.0, 3.0, -8.9, -8.68, 0, col_black);
     if (ui->p_phase_out > 0) {
-      unity_box2d(view, 0, 3.0 * ui->p_phase_out, -9.371, -9.225, -.01, col_pos);
+      unity_box2d(view, 0, 3.0 * ui->p_phase_out, -8.871, -8.725, -.01, col_pos);
     } else if (ui->p_phase_out < 0) {
-      unity_box2d(view, 3.0 * ui->p_phase_out, 0, -9.4, -9.2, -.01, col_neg);
+      unity_box2d(view, 3.0 * ui->p_phase_out, 0, -8.871, -8.725, -.01, col_neg);
     }
   }
 
-  if (1) {
+  if (1) { /* balance mode */
     unity_box2d(view, -3.55, -1.45, .7, 1.8, 0, shadegry);
     switch((int) vmap_val(view, 4)) {
       case 1:
@@ -1062,7 +1062,7 @@ onDisplay(PuglView* view)
 	break;
     }
   }
-  if (1) {
+  if (1) { /* imprint */
     glPushMatrix();
     glLoadIdentity();
     glMatrixMode(GL_PROJECTION);
@@ -1398,23 +1398,23 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     ui->ctrls[ID].fmt = FMT; \
   }
 
-  CTRLELEM(0, OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
+  CTRLELEM(0,  OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
 
-  CTRLELEM(1, OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseL
-  CTRLELEM(2, OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseR
+  CTRLELEM(1,  OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseL
+  CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, -1, NULL); // phaseR
 
-  CTRLELEM(3, OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
-  CTRLELEM(4, OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
+  CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
+  CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
 
-  CTRLELEM(5, OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
-  CTRLELEM(6, OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
+  CTRLELEM(5,  OBJ_DIAL,  0, 2000, 0,   -2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
+  CTRLELEM(6,  OBJ_DIAL,  0, 2000, 0,    2.6, -1.0,  1.5, 1.5, 1, 1, dialfmt_delay);
   CTRLELEM(12, OBJ_PUSHBUTTON, 0, 1, 0,  0, -1.0,  1.0, 1.0, 0.7, -1, NULL); // link
 
-  CTRLELEM(8, OBJ_BUTTON, 0, 1, 0, -2.80, -3.32,  1.3, 2.0, .9, 3, NULL); // ll
-  CTRLELEM(10, OBJ_BUTTON, 0, 1, 0, -1.40, -3.32,  1.3, 2.0, .9, 5, NULL); // mono
-  CTRLELEM(7, OBJ_BUTTON, 0, 1, 0, -0.00, -3.32,  1.3, 2.0, .9, 2, NULL); // lr
-  CTRLELEM(11, OBJ_BUTTON, 0, 1, 0,  1.40, -3.32,  1.3, 2.0, .9, 6, NULL); // rl
-  CTRLELEM(9, OBJ_BUTTON, 0, 1, 0,  2.80, -3.32,  1.3, 2.0, .9, 4, NULL); // rr
+  CTRLELEM(8,  OBJ_BUTTON, 0, 1, 0, -2.60, -3.10,  1.3, 2.0, .8, 3, NULL); // ll
+  CTRLELEM(10, OBJ_BUTTON, 0, 1, 0, -1.30, -3.10,  1.3, 2.0, .8, 5, NULL); // mono
+  CTRLELEM(7,  OBJ_BUTTON, 0, 1, 0, -0.00, -3.10,  1.3, 2.0, .8, 2, NULL); // lr
+  CTRLELEM(11, OBJ_BUTTON, 0, 1, 0,  1.30, -3.10,  1.3, 2.0, .8, 6, NULL); // rl
+  CTRLELEM(9,  OBJ_BUTTON, 0, 1, 0,  2.60, -3.10,  1.3, 2.0, .8, 4, NULL); // rr
 
 
 #ifdef OLD_SUIL
