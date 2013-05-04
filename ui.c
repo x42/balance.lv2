@@ -986,7 +986,7 @@ onDisplay(PuglView* view)
     if (ui->ctrls[i].texID > 0) {
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
-      glEnable(GL_TEXTURE_2D);
+      //glEnable(GL_TEXTURE_2D);
       glBindTexture(GL_TEXTURE_2D, ui->texID[ui->ctrls[i].texID]);
     }
 
