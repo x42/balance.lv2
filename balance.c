@@ -97,6 +97,11 @@ typedef struct {
 	float p_vpeak_in[CHANNELS];
 	float p_vpeak_out[CHANNELS];
 
+	double p_phase_outP;
+	double p_phase_outN;
+	double p_phase_outLPF;
+	double p_phase_out;
+
 	/* peak hold */
 	float p_tme_in[CHANNELS];
 	float p_tme_out[CHANNELS];
@@ -275,6 +280,11 @@ static void reset_uicom(BalanceControl* self) {
 
 		self->p_bal[i] = INFINITY;
 		self->p_dly[i] = -1;
+
+		self->p_phase_outLPF = 0;
+		self->p_phase_outP   = 0;
+		self->p_phase_outN   = 0;
+		self->p_phase_out    = 0;
 	}
 	self->p_peakcnt  = 0;
 }
@@ -290,6 +300,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float gain_right = 1.0;
 
 	const int pkhld = 2.0 * UPDATE_FREQ;
+	const int ascnt = self->samplerate / UPDATE_FREQ;
 
   const uint32_t capacity = self->notify->atom.size;
   lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
@@ -393,6 +404,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 			if (ps > self->p_peak_out[c]) self->p_peak_out[c] = ps;
 		}
 	}
+	/* output phase correlation -- simple version */
+#define SIGNUM(a) (a < 0 ? -1 : 1)
+#define SQUARE(a) ( (a) * (a) )
+	for (i=0; i < n_samples; ++i) {
+		self->p_phase_outP += SQUARE(self->output[C_LEFT][i] + self->output[C_RIGHT][i]);
+		self->p_phase_outN += SQUARE(self->output[C_LEFT][i] - self->output[C_RIGHT][i]);
+	}
 
 /* peak hold */
 #define PKM(A,CHN,ID) \
@@ -425,7 +443,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	/* report peaks to UI */
 	self->p_peakcnt += n_samples;
-	if (self->p_peakcnt > self->samplerate / UPDATE_FREQ) {
+	if (self->p_peakcnt > ascnt) {
 
 		PKF(in,  C_LEFT,  METER_IN_LEFT)
 		PKF(in,  C_RIGHT, METER_IN_RIGHT);
@@ -437,10 +455,29 @@ run(LV2_Handle instance, uint32_t n_samples)
 		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
 		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
-		self->p_peakcnt -= self->samplerate / UPDATE_FREQ;
+#define RMSF(A) sqrt( (A) / (float)ascnt)
+		const float phasdiv = self->p_phase_outP > self->p_phase_outN ? self->p_phase_outP : self->p_phase_outN;
+		float phase = 0;
+		if (phasdiv != 0) {
+			phase = (RMSF(self->p_phase_outP) - RMSF(self->p_phase_outN)) / RMSF(fabs(phasdiv));
+		}
+		self->p_phase_outLPF += (phase - self->p_phase_outLPF) * .2;
+
+		if (fabs(self->p_phase_outLPF) > fabs(self->p_phase_out)) {
+			self->p_phase_out = self->p_phase_outLPF;
+		} else {
+			if (self->p_phase_out < .002) self->p_phase_out = 0;
+			else self->p_phase_out *= .96;
+		}
+
+		forge_kvcontrolmessage(&self->forge, &self->uris, PHASE_OUT, self->p_phase_outLPF);
+
+		self->p_peakcnt -= ascnt;
 		for (c=0; c < CHANNELS; ++c) {
 			self->p_peak_in[c] = -INFINITY;
 			self->p_peak_out[c] = -INFINITY;
+			self->p_phase_outP = 0;
+			self->p_phase_outN = 0;
 		}
 	}
 

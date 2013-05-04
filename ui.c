@@ -136,6 +136,7 @@ typedef struct {
   float p_mtr_out[2];
   float p_peak_in[2];
   float p_peak_out[2];
+  float p_phase_out;
 
   int link_delay;
 
@@ -1033,6 +1034,18 @@ onDisplay(PuglView* view)
   peak_meter(view,  4.76, ui->p_mtr_out[1], ui->p_peak_out[1]);
 
   if (1) {
+    const GLfloat col_black[] =  { 0.0, 0.0, 0.0, 0.5 };
+    const GLfloat col_pos[] =    { 0.0, 1.0, 0.0, 1.0 };
+    const GLfloat col_neg[] =    { 1.0, 0.0, 0.0, 1.0 };
+    unity_box2d(view, -3.0, 3.0, -9.4, -9.2, 0, col_black);
+    if (ui->p_phase_out > 0) {
+      unity_box2d(view, 0, 3.0 * ui->p_phase_out, -9.371, -9.225, -.01, col_pos);
+    } else if (ui->p_phase_out < 0) {
+      unity_box2d(view, 3.0 * ui->p_phase_out, 0, -9.4, -9.2, -.01, col_neg);
+    }
+  }
+
+  if (1) {
     unity_box2d(view, -3.55, -1.45, .7, 1.8, 0, shadegry);
     switch((int) vmap_val(view, 4)) {
       case 1:
@@ -1539,6 +1552,7 @@ port_event(LV2UI_Handle handle,
     case PEAK_IN_RIGHT:   ui->p_peak_in[1] = iec_scale(v) * 0.01; break;
     case PEAK_OUT_LEFT:   ui->p_peak_out[0] = iec_scale(v) * 0.01; break;
     case PEAK_OUT_RIGHT:  ui->p_peak_out[1] = iec_scale(v) * 0.01; break;
+    case PHASE_OUT:       ui->p_phase_out = v; break;
     default:
       return;
   }
