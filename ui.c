@@ -772,7 +772,7 @@ peak_meter(PuglView* view,
   const float level, const float hold ) {
   const float y = -8.71;
   const GLfloat col_black[] =  { 0.0, 0.0, 0.0, 0.5 };
-  const GLfloat col_hold[] =   { 0.9, 0.9, 0.0, 1.0 };
+  const GLfloat col_hold[] =   { 1.0, 1.0, 0.0, 1.0 };
 
   const float x0 = x-.09;
   const float x1 = x+.09;
@@ -785,7 +785,7 @@ peak_meter(PuglView* view,
     const float phy = 17.04 * hold;
     unity_box2d(view, x0, x1, y - .066 + phy, y + phy, -.02, col_hold);
   }
-#if 1
+#if 0
   if (level < .5) {
     const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 0.9 };
     GLfloat col_peak[]       =   { 0.0, 0.0, 0.0, 0.9 };
@@ -800,6 +800,31 @@ peak_meter(PuglView* view,
     col_peak[1] = 1.0 - col_peak[0];
     gradient_box2d(view, x0, x1, y0, y+ 17.04 * .5, -.01, col_base, col_mid);
     gradient_box2d(view, x0, x1, y+ 17.04 * .5, y1, -.01, col_mid, col_peak);
+  }
+#elif 1
+  //ie green up to -18, lighter green to -10, orange to -2, red to 0
+  GLfloat col_peak18[]   =   { 0.0, 0.5, 0.0, 1.0 };  // .55
+  GLfloat col_peak10[]   =   { 0.0, 0.9, 0.0, 1.0 };  // .75
+  GLfloat col_peak2[]    =   { 0.8, 0.8, 0.0, 1.0 };  // .95
+  GLfloat col_peak[]     =   { 1.0, 0.0, 0.0, 1.0 };
+
+#define PKY(V) (y + 17.04 * V)
+  if (level > .95) {
+    unity_box2d(view, x0, x1, PKY(.95),  y1, -.01, col_peak);
+    unity_box2d(view, x0, x1, PKY(.75), PKY(.95), -.01, col_peak2);
+    unity_box2d(view, x0, x1, PKY(.55), PKY(.75), -.01, col_peak10);
+    unity_box2d(view, x0, x1,       y0, PKY(.55), -.01, col_peak18);
+  }
+  else if (level > .75) {
+    unity_box2d(view, x0, x1, PKY(.75), y1, -.01, col_peak2);
+    unity_box2d(view, x0, x1, PKY(.55), PKY(.75), -.01, col_peak10);
+    unity_box2d(view, x0, x1,       y0, PKY(.55), -.01, col_peak18);
+  }
+  else if (level > .55) {
+    unity_box2d(view, x0, x1, PKY(.55), y1, -.01, col_peak10);
+    unity_box2d(view, x0, x1,       y0, PKY(.55), -.01, col_peak18);
+  } else {
+    unity_box2d(view, x0, x1,       y0, y1, -.01, col_peak18);
   }
 #else
   const GLfloat col_base[] =   { 0.0, 0.0, 1.0, 1.0 };
