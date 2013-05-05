@@ -1,3 +1,11 @@
+2013-05-05 (0.3.0)  Robin Gareus <robin@gareus.org>
+* add phase-invert buttons in input stage
+* add phase correlation meter
+* IEC 60268-18 style meters
+* do not calc levels/phase, nor send messages to UI, if UI is not visible
+* use to FreeSansBold font as default
+* various minor tweaks and fixes
+
 2013-05-02 (0.2.0)  Robin Gareus <robin@gareus.org>
 * added openGL based UI
 
