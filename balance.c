@@ -460,7 +460,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 /* peak hold */
 #define PKM(A,CHN,ID) \
 { \
-	const float peak = VALTODB(sqrt(self->p_peak_##A[CHN])); \
+	const float peak = VALTODB(self->p_peak_##A[CHN]); \
 	if (peak > self->p_max_##A[CHN]) { \
 		self->p_max_##A[CHN] = peak; \
 		self->p_tme_##A[CHN] = 0; \
