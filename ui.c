@@ -640,8 +640,8 @@ static void setupOpenGL() {
   glHint(GL_GENERATE_MIPMAP_HINT, GL_NICEST);
   glHint(GL_FOG_HINT, GL_NICEST);
 
+  glLineWidth(0);
   //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // test & debug
-  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 }
 
 static void setupLight() {
