@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
 #include "uris.h"
@@ -32,6 +33,9 @@
 #define METER_FALLOFF (13.3) // dB/sec
 #define UPDATE_FREQ (30.0) //  Hz
 #define PEAK_HOLD_TIME (2.0) //  seconds
+
+#define PEAK_INTEGRAION_TIME (0.05) //  seconds -- must be >=0; should be <= .05
+#define PHASE_INTEGRAION_TIME (.5) //  seconds -- must be > 0
 
 #define C_LEFT (0)
 #define C_RIGHT (1)
@@ -291,8 +295,10 @@ static void reset_uicom(BalanceControl* self) {
 		self->p_phase_outP   = 0;
 		self->p_phase_outN   = 0;
 
-		memset(self->p_peak_inPi[i],  0, self->peak_integrate_max * sizeof(double));
-		memset(self->p_peak_outPi[i], 0, self->peak_integrate_max * sizeof(double));
+		if (self->peak_integrate_max > 0) {
+			memset(self->p_peak_inPi[i],  0, self->peak_integrate_max * sizeof(double));
+			memset(self->p_peak_outPi[i], 0, self->peak_integrate_max * sizeof(double));
+		}
 		self->p_peak_outP[i] = self->p_peak_inP[i] = 0;
 		self->p_peak_outM[i] = self->p_peak_inM[i] = 0;
 	}
@@ -384,6 +390,11 @@ run(LV2_Handle instance, uint32_t n_samples)
 				const float ps = fabsf(self->input[c][i]);
 				if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
 
+				if (self->peak_integrate_max < 1) {
+					self->p_peak_inM[c] = ps * ps;
+					continue;
+				}
+
 				/* integrated level, peak */
 				const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
 				const double p_sig = SQUARE(self->input[c][i]);
@@ -432,6 +443,11 @@ run(LV2_Handle instance, uint32_t n_samples)
 			const float ps = fabsf(self->output[c][i]);
 			if (ps > self->p_peak_out[c]) self->p_peak_out[c] = ps;
 
+				if (self->peak_integrate_max < 1) {
+				self->p_peak_outM[c] = ps * ps;
+				continue;
+			}
+
 			/* integrated level, peak */
 			const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
 			const double p_sig = SQUARE(self->output[c][i]);
@@ -442,7 +458,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 			if (psm > self->p_peak_outM[c]) self->p_peak_outM[c] = psm;
 		}
 	}
-	self->peak_integrate_pos = (self->peak_integrate_pos + n_samples ) % self->peak_integrate_max;
+	if (self->peak_integrate_max > 0) {
+		self->peak_integrate_pos = (self->peak_integrate_pos + n_samples ) % self->peak_integrate_max;
+	}
 
 	/* simple output phase correlation */
 	for (i=0; i < n_samples; ++i) {
@@ -571,16 +589,24 @@ instantiate(const LV2_Descriptor*     descriptor,
   map_balance_uris(self->map, &self->uris);
   lv2_atom_forge_init(&self->forge, self->map);
 
-	self->peak_integrate_max = .05 * rate;
-	self->phase_integrate_max = .5 * rate;
+	self->peak_integrate_max = PEAK_INTEGRAION_TIME * rate;
+	self->phase_integrate_max = PHASE_INTEGRAION_TIME * rate;
+
+	assert(self->peak_integrate_max >= 0);
+	assert(self->phase_integrate_max > 0);
 
 	for (i=0; i < CHANNELS; ++i) {
 		self->c_amp[i] = 1.0;
 		self->c_dly[i] = 0;
 		self->r_ptr[i] = self->w_ptr[i] = 0;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
-		self->p_peak_inPi[i]  = malloc(self->peak_integrate_max * sizeof(double));
-		self->p_peak_outPi[i] = malloc(self->peak_integrate_max * sizeof(double));
+		if (self->peak_integrate_max > 0) {
+			self->p_peak_inPi[i]  = malloc(self->peak_integrate_max * sizeof(double));
+			self->p_peak_outPi[i] = malloc(self->peak_integrate_max * sizeof(double));
+		} else {
+			self->p_peak_inPi[i]  = NULL;
+			self->p_peak_outPi[i] = NULL;
+		}
 	}
 	self->p_phase_outPi = malloc(self->phase_integrate_max * sizeof(double));
 	self->p_phase_outNi = malloc(self->phase_integrate_max * sizeof(double));
