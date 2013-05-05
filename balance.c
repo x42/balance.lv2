@@ -34,8 +34,8 @@
 #define UPDATE_FREQ (30.0) //  Hz
 #define PEAK_HOLD_TIME (2.0) //  seconds
 
-#define PEAK_INTEGRAION_TIME (0.05) //  seconds -- must be >=0; should be <= .05
-#define PHASE_INTEGRAION_TIME (.5) //  seconds -- must be > 0
+#define PEAK_INTEGRATION_TIME (0.05) //  seconds -- must be >=0; should be <= .05
+#define PHASE_INTEGRATION_TIME (.5) //  seconds -- must be > 0
 
 #define C_LEFT (0)
 #define C_RIGHT (1)
@@ -589,8 +589,8 @@ instantiate(const LV2_Descriptor*     descriptor,
   map_balance_uris(self->map, &self->uris);
   lv2_atom_forge_init(&self->forge, self->map);
 
-	self->peak_integrate_max = PEAK_INTEGRAION_TIME * rate;
-	self->phase_integrate_max = PHASE_INTEGRAION_TIME * rate;
+	self->peak_integrate_max = PEAK_INTEGRATION_TIME * rate;
+	self->phase_integrate_max = PHASE_INTEGRATION_TIME * rate;
 
 	assert(self->peak_integrate_max >= 0);
 	assert(self->phase_integrate_max > 0);
