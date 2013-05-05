@@ -494,21 +494,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
 		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
-		double phase = 0;
-		switch ((int) *self->monomode) {
-			case 1:
-			case 2:
-			case 4:
-				/* mono modes - no phase */
-				break;
-			default:
-				{
 #define RMSF(A) sqrt( ( (A) / (double)self->phase_integrate_max ) + 1.0e-23 )
-					const double phasdiv = self->p_phase_outP + self->p_phase_outN;
-					if (rint(phasdiv * 100000.0) != 0) {
-						phase = (RMSF(self->p_phase_outP) - RMSF(self->p_phase_outN)) / RMSF(phasdiv);
-					}
-				}
+		double phase = 0.0;
+		const double phasdiv = self->p_phase_outP + self->p_phase_outN;
+		if (phasdiv >= 1.0e-6) {
+			phase = (RMSF(self->p_phase_outP) - RMSF(self->p_phase_outN)) / RMSF(phasdiv);
+		} else if (self->p_phase_outP > .001 && self->p_phase_outN > .001) {
+			phase = 1.0;
 		}
 
 		forge_kvcontrolmessage(&self->forge, &self->uris, PHASE_OUT, phase);
