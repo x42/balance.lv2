@@ -341,6 +341,7 @@ run(LV2_Handle instance, uint32_t n_samples)
     }
 	}
 
+	/* pre-calculate parameters */
 	if (balance < 0) {
 		gain_right = 1.0 + RAIL(balance, -1.0, 0.0);
 	} else if (balance > 0) {
@@ -372,27 +373,28 @@ run(LV2_Handle instance, uint32_t n_samples)
 			break;
 	}
 
+	if (*(self->phase[C_LEFT])) gain_left *=-1;
+	if (*(self->phase[C_RIGHT])) gain_right *=-1;
+
+	/* keep track of input levels -- only if GUI is visiable */
 	if (self->uicom_active) {
-		/* input peak meter */
 		for (c=0; c < CHANNELS; ++c) {
 			for (i=0; i < n_samples; ++i) {
+				/* input peak meter */
 				const float ps = fabsf(self->input[c][i]);
 				if (ps > self->p_peak_in[c]) self->p_peak_in[c] = ps;
 
-			/* integrated level, peak */
-			const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
-			const double p_sig = SQUARE(self->input[c][i] + self->input[c][i]);
-			self->p_peak_inP[c] += p_sig - self->p_peak_inPi[c][pip];
-			self->p_peak_inPi[c][pip] = p_sig;
-			const float psm = self->p_peak_inP[c] / (double) self->peak_integrate_max;
-			if (psm > self->p_peak_inM[c]) self->p_peak_inM[c] = psm;
-
+				/* integrated level, peak */
+				const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
+				const double p_sig = SQUARE(self->input[c][i]);
+				self->p_peak_inP[c] += p_sig - self->p_peak_inPi[c][pip];
+				self->p_peak_inPi[c][pip] = p_sig;
+				/* peak of integrated signal */
+				const float psm = self->p_peak_inP[c] / (double) self->peak_integrate_max;
+				if (psm > self->p_peak_inM[c]) self->p_peak_inM[c] = psm;
 			}
 		}
 	}
-
-	if (*(self->phase[C_LEFT])) gain_left *=-1;
-	if (*(self->phase[C_RIGHT])) gain_right *=-1;
 
 	/* process audio -- delayline + balance & gain */
 	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
@@ -417,6 +419,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	channel_map(self, (int) *self->monomode, pos, n_samples);
 	self->c_monomode = (int) *self->monomode;
 
+	/* audio processing done */
+
 	if (!self->uicom_active) {
 		return;
 	}
@@ -430,20 +434,22 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 			/* integrated level, peak */
 			const int pip = (self->peak_integrate_pos + i ) % self->peak_integrate_max;
-			const double p_sig = SQUARE(self->output[c][i] + self->output[c][i]);
+			const double p_sig = SQUARE(self->output[c][i]);
 			self->p_peak_outP[c] += p_sig - self->p_peak_outPi[c][pip];
 			self->p_peak_outPi[c][pip] = p_sig;
+			/* peak of integrated signal */
 			const float psm = self->p_peak_outP[c] / (double) self->peak_integrate_max;
 			if (psm > self->p_peak_outM[c]) self->p_peak_outM[c] = psm;
 		}
 	}
 	self->peak_integrate_pos = (self->peak_integrate_pos + n_samples ) % self->peak_integrate_max;
 
-	/* output phase correlation -- simple version */
+	/* simple output phase correlation */
 	for (i=0; i < n_samples; ++i) {
 		const double p_pos = SQUARE(self->output[C_LEFT][i] + self->output[C_RIGHT][i]);
 		const double p_neg = SQUARE(self->output[C_LEFT][i] - self->output[C_RIGHT][i]);
 
+		/* integrate over 500ms */
 		self->p_phase_outP += p_pos - self->p_phase_outPi[self->phase_integrate_pos];
 		self->p_phase_outN += p_neg - self->p_phase_outNi[self->phase_integrate_pos];
 		self->p_phase_outPi[self->phase_integrate_pos] = p_pos;
@@ -454,7 +460,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 /* peak hold */
 #define PKM(A,CHN,ID) \
 { \
-	const float peak =  self->p_vpeak_##A[CHN]; \
+	const float peak = VALTODB(sqrt(self->p_peak_##A[CHN])); \
 	if (peak > self->p_max_##A[CHN]) { \
 		self->p_max_##A[CHN] = peak; \
 		self->p_tme_##A[CHN] = 0; \
