@@ -468,7 +468,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	} else if (self->p_tme_##A[CHN] <= pkhld) { \
 		(self->p_tme_##A[CHN])++; \
 	} else { \
-		self->p_max_##A[CHN] = peak; \
+		self->p_max_##A[CHN] -= METER_FALLOFF / UPDATE_FREQ; \
+		self->p_max_##A[CHN] = MAX(-INFINITY, self->p_max_##A[CHN]); \
 		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
 	} \
 }
