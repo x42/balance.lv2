@@ -346,9 +346,9 @@ run(LV2_Handle instance, uint32_t n_samples)
 					const LV2_Atom* value = NULL;
 					lv2_atom_object_get(obj, self->uris.blc_ccval, &value, 0);
 					if (value) {
-						float v = ((LV2_Atom_Float*)value)->body;
-						if (v >=0 && v<= self->peak_integrate_max) {
-							self->peak_integrate_pref = v * self->samplerate;
+						float v = ((LV2_Atom_Float*)value)->body * self->samplerate;
+						if (v >=0 && v <= self->peak_integrate_max) {
+							self->peak_integrate_pref = v;
 						}
 						reset_uicom(self);
 					}

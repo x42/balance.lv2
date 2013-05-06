@@ -56,6 +56,9 @@
 /* ui-model scale -- on screen we use [-1..+1] orthogonal projection */
 #define SCALE (0.2f)
 
+#define MOUSEZ (-.04)
+#define SIDEVZ (.15)
+
 #define SIGNUM(a) (a < 0 ? -1 : 1)
 #define CTRLWIDTH2(ctrl) (SCALE * (ctrl).s * (ctrl).w / 2.0)
 #define CTRLHEIGHT2(ctrl) (SCALE * (ctrl).s * (ctrl).h / 2.0)
@@ -81,7 +84,7 @@ static inline int MOUSEIN(
 }
 
 /* total number of interactive objects */
-#define TOTAL_OBJ (13)
+#define TOTAL_OBJ (14)
 
 typedef struct {
   int type; // type ID from ui_model.h
@@ -293,11 +296,12 @@ static void print4x4(GLdouble *m) {
 #endif
 
 /* apply reverse projection to mouse-pointer, project Z-axis to screen. */
-static void project_mouse(PuglView* view, int mx, int my, float *x, float *y) {
+static void project_mouse(PuglView* view, int mx, int my, float *x, float *y, float zoff) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   const double fx =  2.0 * (float)mx / ui->width  - 1.0;
   const double fy = -2.0 * (float)my / ui->height + 1.0;
-  const double fz = -(fx * ui->matrix[2] + fy * ui->matrix[6]) / ui->matrix[10];
+  const double fz = (zoff -(fx * ui->matrix[2] + fy * ui->matrix[6])) / ui->matrix[10];
+
 
   *x = fx * ui->matrix[0] + fy * ui->matrix[4] + fz * ui->matrix[8] + ui->matrix[12];
   *y = fx * ui->matrix[1] + fy * ui->matrix[5] + fz * ui->matrix[9] + ui->matrix[13];
@@ -361,7 +365,7 @@ static float vmap_val(PuglView* view, const int elem) {
 static void notifyPlugin(PuglView* view, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (elem == 13) {
-    forge_message_kv(ui, ui->uris.blc_meters_int, 0, ui->ctrls[elem].cur / 1000.0);
+    forge_message_kv(ui, ui->uris.blc_meters_int, 0, (ui->ctrls[elem].cur / 10000.0));
     return;
   }
   if (elem > 6 && elem < 12) {
@@ -495,7 +499,7 @@ void dialfmt_delay(PuglView* view, char* out, int elem) {
 
 void dialfmt_meter(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  sprintf(out, "%.0fms", ui->ctrls[elem].cur);
+  sprintf(out, "%.1fms", ui->ctrls[elem].cur / 10.0);
 }
 
 static float iec_scale(float db) {
@@ -745,6 +749,18 @@ render_text(PuglView* view, const char *text, float x, float y, float z, int ali
       break;
     case 3: // left bottom
       break;
+    case 5: // left + middle
+      glTranslatef(
+	  0,
+	  (bb[4] - bb[1])/-2.0,
+	  0);
+      break;
+    case 6: // right + middle
+      glTranslatef(
+	  (bb[3] - bb[0])/-1.0,
+	  (bb[4] - bb[1])/-2.0,
+	  0);
+      break;
     default: // left top
       glTranslatef(
 	  0,
@@ -962,7 +978,16 @@ onDisplay(PuglView* view)
     glPushMatrix();
     glLoadIdentity();
     glScalef(SCALE, SCALE, SCALE);
-    glTranslatef(ui->ctrls[i].x, ui->ctrls[i].y, 0.0f);
+
+    if (i==13) {
+      glMatrixMode(GL_PROJECTION);
+      glRotatef(90, 0, 1, 0);
+      glMatrixMode(GL_MODELVIEW);
+      glTranslatef(-.5, ui->ctrls[i].y,  ui->ctrls[i].x);
+      glRotatef(-90 , 0, 0, 1);
+    } else {
+      glTranslatef(ui->ctrls[i].x, ui->ctrls[i].y, 0.0f);
+    }
 
     switch(ui->ctrls[i].type) {
       case OBJ_DIAL:
@@ -996,7 +1021,7 @@ onDisplay(PuglView* view)
 	if (ui->ctrls[i].cur == ui->ctrls[i].max) {
 	  glMaterialfv(GL_FRONT, GL_EMISSION, i > 2 ? lamp_grn : lamp_blu );
 	  glTranslatef(0.0, 0.0, .38);
-	  if (i == ui->hoverid) ui->hoverid = -1;
+	  if (i == ui->hoverid && i > 6 && i < 12) ui->hoverid = -1;
 	} else {
 	  glTranslatef(0.0, 0.0, .15);
 	  glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_mat);
@@ -1029,6 +1054,22 @@ onDisplay(PuglView* view)
       ui->ctrls[i].fmt(view, tval, i);
       unity_box2d(view, x-0.9, x+0.9, y-0.25, y+0.25, 0, no_mat);
       render_text(view, tval, x, y, -0.01f, 1, text_grn);
+    }
+
+    if (i==13) {
+      float x = ui->ctrls[i].x;
+      float y = ui->ctrls[i].y + (ui->ctrls[i].h - .2 ) * ui->ctrls[i].s;
+      dialfmt_meter(view, tval, i);
+      glMatrixMode(GL_PROJECTION);
+      glRotatef(-90, 0, 0, 1);
+      glMatrixMode(GL_MODELVIEW);
+      render_text(view, tval, -y, -.52, x-.01, 6, text_grn);
+      render_text(view, "Level Meter Integration Time", 1.5-y, -.52, x-.01, 5, text_grn);
+
+      glMatrixMode(GL_PROJECTION);
+      glRotatef( 90, 0, 0, 1);
+      glRotatef(-90, 0, 1, 0);
+      glMatrixMode(GL_MODELVIEW);
     }
   }
 
@@ -1118,10 +1159,10 @@ onKeyboard(PuglView* view, bool press, uint32_t key)
 
   switch (key) {
     case 'a':
-      if (ui->rot[0] > -90) { ui->rot[0] -= 5; queue_reshape = 1; }
+      if (ui->rot[0] > -60) { ui->rot[0] -= 5; queue_reshape = 1; }
       break;
     case 'd':
-      if (ui->rot[0] <  90) { ui->rot[0] += 5; queue_reshape = 1; }
+      if (ui->rot[0] <  60) { ui->rot[0] += 5; queue_reshape = 1; }
       break;
     case 'x':
       if (ui->rot[1] >   0) { ui->rot[1] -= 5; queue_reshape = 1; }
@@ -1184,9 +1225,10 @@ onScroll(PuglView* view, int x, int y, float dx, float dy)
 {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   float fx, fy;
-  project_mouse(view, x, y, &fx, &fy);
+  project_mouse(view, x, y, &fx, &fy, MOUSEZ);
   int i;
   for (i = 0; i < TOTAL_OBJ ; ++i) {
+    if (i == 13) project_mouse(view, x, y, &fx, &fy, SIDEVZ);
     if (MOUSEOVER(ui->ctrls[i], fx, fy)) {
       if (ui->ctrls[i].max == 0) {
 	/* fixed integer dials */
@@ -1215,12 +1257,13 @@ onMotion(PuglView* view, int x, int y)
 {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   float fx, fy;
-  project_mouse(view, x, y, &fx, &fy);
+  project_mouse(view, x, y, &fx, &fy, MOUSEZ);
 
   if (ui->dndid < 0) {
     int hover = ui->hoverid;
     ui->hoverid = -1;
     for (int i = 0; i < TOTAL_OBJ; ++i) {
+      if (i == 13) project_mouse(view, x, y, &fx, &fy, SIDEVZ);
       if (!MOUSEOVER(ui->ctrls[i], fx, fy)) {
 	continue;
       }
@@ -1249,7 +1292,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
     return;
   }
 
-  project_mouse(view, x, y, &fx, &fy);
+  project_mouse(view, x, y, &fx, &fy, MOUSEZ);
 
   if (puglGetModifiers(view) & PUGL_MOD_CTRL) {
     ui->dndscale =.05;
@@ -1260,6 +1303,7 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
   }
 
   for (i = 0; i < TOTAL_OBJ; ++i) {
+    if (i == 13) project_mouse(view, x, y, &fx, &fy, SIDEVZ);
     if (!MOUSEOVER(ui->ctrls[i], fx, fy)) {
       continue;
     }
@@ -1427,9 +1471,9 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 
   CTRLELEM(1,  OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseL
   CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseR
-#if 0
-  CTRLELEM(13, OBJ_DIAL,   0, 50, 5,     -6.6,  2.8,  1.5, 1.5,  .5, 1, dialfmt_meter); // RMS
-#endif
+
+  // PEAK_INTEGRATION_TIME * 10 --  dlf value from balance.c
+  CTRLELEM(13, OBJ_DIAL,   0, 500, 50,   -5.0,  0.0,  1.5, 1.5,  .5, 1, NULL); // level integration 1/10 ms
 
   CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
   CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
