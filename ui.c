@@ -396,7 +396,7 @@ static float check_rail(PuglView* view, int elem, float val) {
 static void processMotion(PuglView* view, int elem, float dx, float dy) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (elem < 0 || elem >= TOTAL_OBJ) return;
-  const float dist = dy * ui->dndscale;
+  const float dist = (dy + dx) * ui->dndscale;
   const float oldval = vmap_val(view, elem);
 
   switch (ui->ctrls[elem].type) {
@@ -467,7 +467,7 @@ static void processLinkedMotion(PuglView* view, int elem, float dx, float dy) {
     processMotion(view, elem, dx, dy);
     return;
   }
-  const float dist = dy * ui->dndscale * (ui->ctrls[elem].max - ui->ctrls[elem].min);
+  const float dist = (dx + dy) * ui->dndscale * (ui->ctrls[elem].max - ui->ctrls[elem].min);
   processLinkedMotion2(view, elem, dist);
 }
 
