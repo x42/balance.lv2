@@ -1013,10 +1013,10 @@ onDisplay(PuglView* view)
   sprintf(tval, "%+02.1fdB", ui->p_bal[1]);
   render_text(view, tval,  1.30, ui->ctrls[3].y + 1.1, -0.01f, 1, text_grn);
 
-  sprintf(tval, "%.1fms", ui->p_dly[0]);
+  sprintf(tval, "%d\302\265s", (int)rint(ui->p_dly[0]*1000.0));
   render_text(view, tval, -1.00, ui->ctrls[5].y - .3, -0.01f, 1, text_grn);
 
-  sprintf(tval, "%.1fms", ui->p_dly[1]);
+  sprintf(tval, "%d\302\265s", (int)rint(ui->p_dly[0]*1000.0));
   render_text(view, tval,  1.00, ui->ctrls[5].y - .3, -0.01f, 1, text_grn);
 
 
