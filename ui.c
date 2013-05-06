@@ -303,6 +303,23 @@ static void project_mouse(PuglView* view, int mx, int my, float *x, float *y) {
   *y = fx * ui->matrix[1] + fy * ui->matrix[5] + fz * ui->matrix[9] + ui->matrix[13];
 }
 
+/******************************************************************************
+ * LV2 UI -> plugin communication
+ */
+
+static void forge_message_kv(BLCui* ui, LV2_URID uri, int key, float value) {
+  uint8_t obj_buf[1024];
+  lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 1024);
+
+  LV2_Atom_Forge_Frame set_frame;
+  LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_blank(&ui->forge, &set_frame, 1, uri);
+  lv2_atom_forge_property_head(&ui->forge, ui->uris.blc_cckey, 0);
+  lv2_atom_forge_int(&ui->forge, key);
+  lv2_atom_forge_property_head(&ui->forge, ui->uris.blc_ccval, 0);
+  lv2_atom_forge_float(&ui->forge, value);
+  lv2_atom_forge_pop(&ui->forge, &set_frame);
+  ui->write(ui->controller, 12, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
+}
 
 /******************************************************************************
  * Value mapping
@@ -343,6 +360,10 @@ static float vmap_val(PuglView* view, const int elem) {
 /* notify lv2 plugin about changed value */
 static void notifyPlugin(PuglView* view, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
+  if (elem == 13) {
+    forge_message_kv(ui, ui->uris.blc_meters_int, 0, ui->ctrls[elem].cur / 1000.0);
+    return;
+  }
   if (elem > 6 && elem < 12) {
     /* push/radio button special */
     for (int i=7; i < 12; ++i) {
@@ -470,6 +491,11 @@ void dialfmt_balance(PuglView* view, char* out, int elem) {
 void dialfmt_delay(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%.0fsm", ui->ctrls[elem].cur);
+}
+
+void dialfmt_meter(PuglView* view, char* out, int elem) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  sprintf(out, "%.0fms", ui->ctrls[elem].cur);
 }
 
 static float iec_scale(float db) {
@@ -999,7 +1025,7 @@ onDisplay(PuglView* view)
 
     if (ui->ctrls[i].fmt) {
       float x = ui->ctrls[i].x;
-      float y = ui->ctrls[i].y - ui->ctrls[i].h + .2;
+      float y = ui->ctrls[i].y - (ui->ctrls[i].h - .2 )* ui->ctrls[i].s;
       ui->ctrls[i].fmt(view, tval, i);
       unity_box2d(view, x-0.9, x+0.9, y-0.25, y+0.25, 0, no_mat);
       render_text(view, tval, x, y, -0.01f, 1, text_grn);
@@ -1092,10 +1118,10 @@ onKeyboard(PuglView* view, bool press, uint32_t key)
 
   switch (key) {
     case 'a':
-      if (ui->rot[0] > -45) { ui->rot[0] -= 5; queue_reshape = 1; }
+      if (ui->rot[0] > -90) { ui->rot[0] -= 5; queue_reshape = 1; }
       break;
     case 'd':
-      if (ui->rot[0] <  45) { ui->rot[0] += 5; queue_reshape = 1; }
+      if (ui->rot[0] <  90) { ui->rot[0] += 5; queue_reshape = 1; }
       break;
     case 'x':
       if (ui->rot[1] >   0) { ui->rot[1] -= 5; queue_reshape = 1; }
@@ -1397,10 +1423,13 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     ui->ctrls[ID].fmt = FMT; \
   }
 
-  CTRLELEM(0,  OBJ_DIAL, -20, 20, 0,     2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
+  CTRLELEM(0,  OBJ_DIAL, -20, 20, 0,      2.6,  3.7,  1.5, 1.5, 1, 1, dialfmt_trim); // trim
 
   CTRLELEM(1,  OBJ_PUSHBUTTON, 0, 1, 0, -0.83,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseL
   CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseR
+#if 0
+  CTRLELEM(13, OBJ_DIAL,   0, 50, 5,     -6.6,  2.8,  1.5, 1.5,  .5, 1, dialfmt_meter); // RMS
+#endif
 
   CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
   CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
@@ -1422,24 +1451,6 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
 #endif
 
   return 0;
-}
-
-/******************************************************************************
- * LV2 UI -> plugin communication
- */
-
-static void forge_message_str(BLCui* ui, LV2_URID uri, const char *key) {
-  uint8_t obj_buf[1024];
-  lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 1024);
-
-  LV2_Atom_Forge_Frame set_frame;
-  LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_blank(&ui->forge, &set_frame, 1, uri);
-  if (key) {
-    lv2_atom_forge_property_head(&ui->forge, ui->uris.blc_cckey, 0);
-    lv2_atom_forge_string(&ui->forge, key, strlen(key));
-  }
-  lv2_atom_forge_pop(&ui->forge, &set_frame);
-  ui->write(ui->controller, 12, lv2_atom_total_size(msg), ui->uris.atom_eventTransfer, msg);
 }
 
 /******************************************************************************
@@ -1487,7 +1498,7 @@ instantiate(const LV2UI_Descriptor*   descriptor,
   }
 
   *widget = (void*)puglGetNativeWindow(ui->view);
-  forge_message_str(ui, ui->uris.blc_meters_on, NULL);
+  forge_message_kv(ui, ui->uris.blc_meters_on, 0, 0);
 
   return ui;
 }
@@ -1496,7 +1507,7 @@ static void
 cleanup(LV2UI_Handle handle)
 {
   BLCui* ui = (BLCui*)handle;
-  forge_message_str(ui, ui->uris.blc_meters_off, NULL);
+  forge_message_kv(ui, ui->uris.blc_meters_off, 0, 0);
 #ifdef OLD_SUIL
   ui->exit = true;
   pthread_join(ui->thread, NULL);
