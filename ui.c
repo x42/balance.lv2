@@ -679,14 +679,20 @@ static void setupLight() {
   const GLfloat light0_diffuse[]  = { 1.0, 1.0, 1.0, 1.0 };
   const GLfloat light0_specular[] = { 0.4, 0.4, 0.9, 1.0 };
   const GLfloat light0_position[] = {  1.0, -2.5, -10.0, 0 };
-  const GLfloat spot_direction[]  = { -1.0,  2.5,  10.0 };
+  const GLfloat spot0_direction[] = { -1.0,  2.5,  10.0 };
+
+  const GLfloat light1_off[]      = { 0.0, 0.0, 0.0, 0.0 };
+
+  const GLfloat light1_specular[] = { 0.75, 0.7, 0.7, 1.0 };
+  const GLfloat light1_position[] = {  1.5,  1.0, -10.0, 0 };
+  const GLfloat spot1_direction[] = { -1.5, -1.0,  10.0 };
 
   glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
   glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
   glLightfv(GL_LIGHT0, GL_SPECULAR, light0_specular);
   glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
   glLightf(GL_LIGHT0,  GL_SPOT_CUTOFF, 10.0f);
-  glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spot_direction);
+  glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spot0_direction);
 #if 0
   glLightf(GL_LIGHT0,  GL_SPOT_EXPONENT, 120.0);
   glLightf(GL_LIGHT0,  GL_CONSTANT_ATTENUATION, 1.5);
@@ -701,6 +707,15 @@ static void setupLight() {
 
   glEnable(GL_LIGHTING);
   glEnable(GL_LIGHT0);
+
+
+  glLightfv(GL_LIGHT1, GL_AMBIENT, light1_off);
+  glLightfv(GL_LIGHT1, GL_DIFFUSE, light1_off);
+  glLightfv(GL_LIGHT1, GL_SPECULAR, light1_specular);
+  glLightfv(GL_LIGHT1, GL_POSITION, light1_position);
+  glLightf(GL_LIGHT1,  GL_SPOT_CUTOFF, 10.0f);
+  glLightfv(GL_LIGHT1, GL_SPOT_DIRECTION, spot1_direction);
+  glEnable(GL_LIGHT1);
 }
 
 /******************************************************************************
@@ -905,6 +920,15 @@ onReshape(PuglView* view, int width, int height)
   return;
 }
 
+static void updateLight(PuglView* view) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  GLfloat light0_position[] = {  .5 + ui->rot[0]/90.0, -.5 - ui->rot[1]/90.0, -10.0, 0 };
+  GLfloat spot_direction[]  = { -light0_position[0], -light0_position[1], -light0_position[2]};
+
+  glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
+  glLightfv(GL_LIGHT0, GL_SPOT_DIRECTION, spot_direction);
+}
+
 
 /* main display function */
 static void
@@ -944,6 +968,8 @@ onDisplay(PuglView* view)
     ftglSetFontFaceSize(ui->font_small, FONTSIZE, 72);
     ftglSetFontCharMap(ui->font_small, ft_encoding_unicode);
   }
+
+  updateLight(view);
 
   /** step 1 - draw background -- fixed objects **/
 
