@@ -29,20 +29,23 @@
 #define MAXDELAY (2001)
 #define CHANNELS (2)
 
-#define FADE_LEN (64)
-#define METER_FALLOFF (13.3) // dB/sec
-#define UPDATE_FREQ (30.0) //  Hz
-#define PEAK_HOLD_TIME (2.0) //  seconds
-
-#define PEAK_INTEGRATION_MAX (.05)
-#define PEAK_INTEGRATION_TIME (0.005) //  seconds -- must be >=0; should be <= PEAK_INTEGRATION_MAX
-#define PHASE_INTEGRATION_TIME (.5) //  seconds -- must be > 0
-
 #define C_LEFT (0)
 #define C_RIGHT (1)
 
-#define SIGNUM(a) (a < 0 ? -1 : 1)
-#define SQUARE(a) ( (a) * (a) )
+#define FADE_LEN (64)
+#define METER_FALLOFF (13.3) // dB/sec
+#define UPDATE_FREQ (30.0)   // Hz
+#define PEAK_HOLD_TIME (2.0) // seconds
+
+#define PEAK_INTEGRATION_MAX (.05)    // seconds -- used for buffer size limit
+#define PEAK_INTEGRATION_TIME (0.005) // seconds -- must be >=0; should be <= PEAK_INTEGRATION_MAX 
+#define PHASE_INTEGRATION_TIME (.5)   // seconds -- must be > 0
+
+
+#define SIGNUM(a)  ( (a) < 0 ? -1 : 1)
+#define SQUARE(a)  ( (a) * (a) )
+
+#define VALTODB(V) (20.0f * log10f(V))
 
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
@@ -265,8 +268,6 @@ channel_map_change(BalanceControl *self, int mode,
 			break;
 	}
 }
-
-#define VALTODB(V) (20.0f * log10f(V))
 
 static inline float gain_to_db(const float g) {
 	if (g <= 0) return -INFINITY;
