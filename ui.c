@@ -69,6 +69,9 @@
    && (mousey) >= (ctrl).y * SCALE - CTRLHEIGHT2(ctrl) \
    && (mousey) <= (ctrl).y * SCALE + CTRLHEIGHT2(ctrl) )
 
+#define MIN(a,b) ( (a) < (b) ? (a) : (b) )
+#define MAX(a,b) ( (a) > (b) ? (a) : (b) )
+
 int mesh_initialized = 0;
 
 static inline int MOUSEIN(
@@ -895,15 +898,19 @@ onReshape(PuglView* view, int width, int height)
 {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   const float invaspect = (float) height / (float) width;
+  ui->width = width; ui->height = height;
+  const float winscale =  MAX(.1, MIN(1.0, invaspect/2.0));
 
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glOrtho(-1.0, 1.0, -invaspect, invaspect, 3.0, -3.0);
+  glViewport(0, 0, ui->width, ui->height);
 
   glRotatef(ui->rot[0], 0, 1, 0);
   glRotatef(ui->rot[1], 1, 0, 0);
   glRotatef(ui->rot[2], 0, 0, 1);
   glScalef(ui->scale, ui->scale, ui->scale);
+  glScalef(winscale, winscale, winscale);
   glTranslatef(ui->off[0], ui->off[1], ui->off[2]);
 
   GLdouble matrix[16];
@@ -975,8 +982,7 @@ onDisplay(PuglView* view)
 
   glPushMatrix();
   glLoadIdentity();
-  const float bgaspect = (float) ui->height / (float) ui->width / 2.0;
-  glScalef(SCALE, SCALE * bgaspect, SCALE);
+  glScalef(SCALE, SCALE, SCALE);
 
   glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, no_mat);
   glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_strip);
@@ -1194,13 +1200,13 @@ onKeyboard(PuglView* view, bool press, uint32_t key)
       if (ui->rot[1] >   0) { ui->rot[1] -= 5; queue_reshape = 1; }
       break;
     case 'w':
-      if (ui->rot[1] <  45) { ui->rot[1] += 5; queue_reshape = 1; }
+      if (ui->rot[1] <  60) { ui->rot[1] += 5; queue_reshape = 1; }
       break;
     case 'z':
-      if (ui->rot[2] > -30) { ui->rot[2] -= 5; queue_reshape = 1; }
+      if (ui->rot[2] > -90) { ui->rot[2] -= 5; queue_reshape = 1; }
       break;
     case 'c':
-      if (ui->rot[2] <  30) { ui->rot[2] += 5; queue_reshape = 1; }
+      if (ui->rot[2] <  90) { ui->rot[2] += 5; queue_reshape = 1; }
       break;
     case '+':
       if (ui->scale < 1.5)  { ui->scale += .025; queue_reshape = 1; }
