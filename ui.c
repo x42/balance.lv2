@@ -69,6 +69,13 @@
    && (mousey) >= (ctrl).y * SCALE - CTRLHEIGHT2(ctrl) \
    && (mousey) <= (ctrl).y * SCALE + CTRLHEIGHT2(ctrl) )
 
+#define PEAKMOVER(pmx, mousex, mousey) \
+  (   (mousex) >= pmx - .3 * SCALE \
+   && (mousex) <= pmx + .3 * SCALE \
+   && (mousey) >= -8.71 * SCALE \
+   && (mousey) <=  9.35 * SCALE )
+
+
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 
@@ -87,7 +94,7 @@ static inline int MOUSEIN(
 }
 
 /* total number of interactive objects */
-#define TOTAL_OBJ (14)
+#define TOTAL_OBJ (16)
 
 typedef struct {
   int type; // type ID from ui_model.h
@@ -371,6 +378,24 @@ static void notifyPlugin(PuglView* view, int elem) {
     forge_message_kv(ui, ui->uris.blc_meters_cfg, 0, (ui->ctrls[elem].cur / 10000.0));
     return;
   }
+  if (elem == 14) {
+    float val = 20.0/1.5;
+    switch ((int)vmap_val(view, elem)) {
+      case 0: val = 6.6; break;
+      case 1: val = 8.8; break;
+      case 2: val = 20.0/1.5; break;
+      case 3: val = 32.0; break;
+      case 4: val = 70.0; break;
+      case 5: val =  0.0; break; // off
+      default: break;
+    }
+    forge_message_kv(ui, ui->uris.blc_meters_cfg, 1, val);
+    return;
+  }
+  if (elem == 15) {
+    forge_message_kv(ui, ui->uris.blc_meters_cfg, 2, rint(ui->ctrls[elem].cur) / 4.0);
+    return;
+  }
   if (elem > 6 && elem < 12) {
     /* push/radio button special */
     for (int i=7; i < 12; ++i) {
@@ -500,9 +525,44 @@ void dialfmt_delay(PuglView* view, char* out, int elem) {
   sprintf(out, "%.0fsm", ui->ctrls[elem].cur);
 }
 
-void dialfmt_meter(PuglView* view, char* out, int elem) {
+void dialfmt_meterint(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%.1fms", ui->ctrls[elem].cur / 10.0);
+}
+
+void dialfmt_meterhold(PuglView* view, char* out, int elem) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  float v = rint(ui->ctrls[elem].cur) / 4.0;
+  if (v == 0)
+    sprintf(out, "inf");
+  else
+    sprintf(out, "%.2fs", v);
+}
+
+
+void dialfmt_meterfall(PuglView* view, char* out, int elem) {
+  switch ((int)vmap_val(view, elem)) {
+    case 0:
+      sprintf(out, "6.6 dB/sec");
+      break;
+    case 1:
+      sprintf(out, "8.8 dB/sec");
+      break;
+    case 2:
+      sprintf(out, "13.3 dB/sec");
+      break;
+    case 3:
+      sprintf(out, "32 dB/sec");
+      break;
+    case 4:
+      sprintf(out, "70 db/sec");
+      break;
+    case 5:
+      sprintf(out, "off");
+      break;
+    default:
+      break;
+  }
 }
 
 static float iec_scale(float db) {
@@ -1011,7 +1071,7 @@ onDisplay(PuglView* view)
     glLoadIdentity();
     glScalef(SCALE, SCALE, SCALE);
 
-    if (i==13) {
+    if (i >= 13) {
       glMatrixMode(GL_PROJECTION);
       glRotatef(90, 0, 1, 0);
       glMatrixMode(GL_MODELVIEW);
@@ -1080,7 +1140,27 @@ onDisplay(PuglView* view)
 
     glPopMatrix();
 
-    if (ui->ctrls[i].fmt) {
+    if (i >= 13) {
+      float x = ui->ctrls[i].x;
+      float y = ui->ctrls[i].y + (ui->ctrls[i].h - .2 ) * ui->ctrls[i].s;
+      glMatrixMode(GL_PROJECTION);
+      glRotatef(-90, 0, 0, 1);
+      glMatrixMode(GL_MODELVIEW);
+
+      if (ui->ctrls[i].fmt) {
+	ui->ctrls[i].fmt(view, tval, i);
+	render_text(view, tval, -y, -.52, x-.01, 6, text_grn);
+      }
+      if (i == 13) {
+	render_text(view, "Level Meter (integ, fall-off, hold)", -9.0, -.52, x-.01, 5, text_grn);
+      }
+
+      glMatrixMode(GL_PROJECTION);
+      glRotatef( 90, 0, 0, 1);
+      glRotatef(-90, 0, 1, 0);
+      glMatrixMode(GL_MODELVIEW);
+
+    } else if (ui->ctrls[i].fmt) {
       float x = ui->ctrls[i].x;
       float y = ui->ctrls[i].y - (ui->ctrls[i].h - .2 )* ui->ctrls[i].s;
       ui->ctrls[i].fmt(view, tval, i);
@@ -1088,21 +1168,6 @@ onDisplay(PuglView* view)
       render_text(view, tval, x, y, -0.01f, 1, text_grn);
     }
 
-    if (i==13) {
-      float x = ui->ctrls[i].x;
-      float y = ui->ctrls[i].y + (ui->ctrls[i].h - .2 ) * ui->ctrls[i].s;
-      dialfmt_meter(view, tval, i);
-      glMatrixMode(GL_PROJECTION);
-      glRotatef(-90, 0, 0, 1);
-      glMatrixMode(GL_MODELVIEW);
-      render_text(view, tval, -y, -.52, x-.01, 6, text_grn);
-      render_text(view, "Level Meter Integration Time", 1.5-y, -.52, x-.01, 5, text_grn);
-
-      glMatrixMode(GL_PROJECTION);
-      glRotatef( 90, 0, 0, 1);
-      glRotatef(-90, 0, 1, 0);
-      glMatrixMode(GL_MODELVIEW);
-    }
   }
 
   /* value info */
@@ -1334,6 +1399,15 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
     ui->dndscale = 0.5;
   }
 
+  if (PEAKMOVER(-4.6 * SCALE, fx, fy)) {
+    forge_message_kv(ui, ui->uris.blc_meters_cfg, 3, 1);
+    return;
+  }
+  if (PEAKMOVER( 4.6 * SCALE, fx, fy)) {
+    forge_message_kv(ui, ui->uris.blc_meters_cfg, 3, 2);
+    return;
+  }
+
   for (i = 0; i < TOTAL_OBJ; ++i) {
     if (i == 13) project_mouse(view, x, y, &fx, &fy, SIDEVZ);
     if (!MOUSEOVER(ui->ctrls[i], fx, fy)) {
@@ -1505,7 +1579,9 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseR
 
   // PEAK_INTEGRATION_TIME * 10 --  dlf value from balance.c
-  CTRLELEM(13, OBJ_DIAL,   0, 500, 50,   -5.0,  0.0,  1.5, 1.5,  .5, 1, NULL); // level integration 1/10 ms
+  CTRLELEM(13, OBJ_DIAL,   0, 500, 50,   -5.0,   0.0,  1.5, 1.5,  .5, 1, dialfmt_meterint); // level integration 1/10 ms
+  CTRLELEM(14, OBJ_DIAL,   -5,  0,  -3,   -5.0, -2.0,  1.5, 1.5,  .5, 1, dialfmt_meterfall); // level falloff
+  CTRLELEM(15, OBJ_DIAL,    0,  40,  8,   -5.0, -4.0,  1.5, 1.5,  .5, 1, dialfmt_meterhold); // peak hold
 
   CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
   CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
