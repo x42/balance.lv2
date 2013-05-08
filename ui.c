@@ -368,7 +368,7 @@ static float vmap_val(PuglView* view, const int elem) {
 static void notifyPlugin(PuglView* view, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   if (elem == 13) {
-    forge_message_kv(ui, ui->uris.blc_meters_int, 0, (ui->ctrls[elem].cur / 10000.0));
+    forge_message_kv(ui, ui->uris.blc_meters_cfg, 0, (ui->ctrls[elem].cur / 10000.0));
     return;
   }
   if (elem > 6 && elem < 12) {

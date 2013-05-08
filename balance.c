@@ -41,7 +41,6 @@
 #define PEAK_INTEGRATION_TIME (0.005) // seconds -- must be >=0; should be <= PEAK_INTEGRATION_MAX 
 #define PHASE_INTEGRATION_TIME (.5)   // seconds -- must be > 0
 
-
 #define SIGNUM(a)  ( (a) < 0 ? -1 : 1)
 #define SQUARE(a)  ( (a) * (a) )
 
@@ -105,27 +104,30 @@ typedef struct {
 
 	int uicom_active;
 
+	float meter_falloff;
+	float peak_hold;
+
 	/* peak hold */
 	int     p_peakcnt;
-	float   p_peak_in[CHANNELS], p_peak_out[CHANNELS];
 	int     peak_integrate_pos, peak_integrate_pref, peak_integrate_max;
-	double *p_peak_inPi[CHANNELS], *p_peak_outPi[CHANNELS];
-	double  p_peak_inP[CHANNELS], p_peak_outP[CHANNELS];
-	double  p_peak_inM[CHANNELS], p_peak_outM[CHANNELS];
+	float   p_peak_in[CHANNELS],    p_peak_out[CHANNELS];   // [abs max signal] peak hold
+	double *p_peak_inPi[CHANNELS], *p_peak_outPi[CHANNELS]; // [sqaread signal] integration data buffer
+	double  p_peak_inP[CHANNELS],   p_peak_outP[CHANNELS];  // [squared signal] current
+	double  p_peak_inM[CHANNELS],   p_peak_outM[CHANNELS];  // [squared signal] max
 
 	/* visible peak w/ falloff */
-	float p_vpeak_in[CHANNELS];
-	float p_vpeak_out[CHANNELS];
+	float p_vpeak_in[CHANNELS];  // [dBFS]
+	float p_vpeak_out[CHANNELS]; // [dbFS]
 
 	int     phase_integrate_pos, phase_integrate_max;
 	double *p_phase_outPi, *p_phase_outNi;
-	double  p_phase_outP, p_phase_outN;
+	double  p_phase_outP,   p_phase_outN;
 
 	/* peak hold */
-	float p_tme_in[CHANNELS];
-	float p_tme_out[CHANNELS];
-	float p_max_in[CHANNELS];
-	float p_max_out[CHANNELS];
+	float p_tme_in[CHANNELS];  // [samples]
+	float p_tme_out[CHANNELS]; // [samples
+	float p_max_in[CHANNELS];  // [dbFS]
+	float p_max_out[CHANNELS]; // [dbFS]
 
 } BalanceControl;
 
@@ -311,6 +313,37 @@ static void reset_uicom(BalanceControl* self) {
 	self->p_peakcnt  = 0;
 }
 
+static void update_meter_cfg(BalanceControl* self, int key, float val) {
+	switch (key) {
+		case 0:
+			if (val >=0 && val <= self->peak_integrate_max) {
+				self->peak_integrate_pref = val;
+			}
+			reset_uicom(self);
+			break;
+		case 1:
+				self->meter_falloff = MAX(0, val / UPDATE_FREQ);
+				self->meter_falloff = MIN(self->meter_falloff, 1000);
+		case 2:
+				self->peak_hold = MAX(0, val * UPDATE_FREQ);
+				self->peak_hold = MIN(self->peak_hold, 60 * UPDATE_FREQ);
+			break;
+		case 3:
+			for (int i=0; i < CHANNELS; ++i) {
+				if ( ((int)val)&1) {
+					self->p_max_in[i] = -INFINITY;
+				}
+				if ( ((int)val)&2) {
+					self->p_max_out[i] = -INFINITY;
+				}
+			}
+			break;
+
+		default:
+			break;
+	}
+}
+
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
@@ -321,7 +354,6 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float gain_left  = 1.0;
 	float gain_right = 1.0;
 
-	const int pkhld = PEAK_HOLD_TIME * UPDATE_FREQ;
 	const int ascnt = self->samplerate / UPDATE_FREQ;
 
   const uint32_t capacity = self->notify->atom.size;
@@ -343,15 +375,12 @@ run(LV2_Handle instance, uint32_t n_samples)
 				if (obj->body.otype == self->uris.blc_meters_off) {
 					self->uicom_active = 0;
 				}
-				if (obj->body.otype == self->uris.blc_meters_int) {
+				if (obj->body.otype == self->uris.blc_meters_cfg) {
+					const LV2_Atom* key = NULL;
 					const LV2_Atom* value = NULL;
-					lv2_atom_object_get(obj, self->uris.blc_ccval, &value, 0);
-					if (value) {
-						float v = ((LV2_Atom_Float*)value)->body * self->samplerate;
-						if (v >=0 && v <= self->peak_integrate_max) {
-							self->peak_integrate_pref = v;
-						}
-						reset_uicom(self);
+					lv2_atom_object_get(obj, self->uris.blc_cckey, &key, self->uris.blc_ccval, &value, 0);
+					if (value && key) {
+						update_meter_cfg(self, ((LV2_Atom_Int*)key)->body, ((LV2_Atom_Float*)value)->body);
 					}
 				}
 			}
@@ -489,7 +518,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 		self->phase_integrate_pos = (self->phase_integrate_pos + 1) % self->phase_integrate_max;
 	}
 
-/* peak hold */
+/* abs peak hold */
 #define PKM(A,CHN,ID) \
 { \
 	const float peak = VALTODB(self->p_peak_##A[CHN]); \
@@ -497,24 +526,31 @@ run(LV2_Handle instance, uint32_t n_samples)
 		self->p_max_##A[CHN] = peak; \
 		self->p_tme_##A[CHN] = 0; \
 		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
-	} else if (self->p_tme_##A[CHN] <= pkhld) { \
+	} else if (self->peak_hold <= 0) { \
+		(self->p_tme_##A[CHN])=0; /* infinite hold */ \
+	} else if (self->p_tme_##A[CHN] <= self->peak_hold) { \
 		(self->p_tme_##A[CHN])++; \
+	} else if (self->meter_falloff == 0) { \
+		self->p_max_##A[CHN] = peak; \
+		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
 	} else { \
-		self->p_max_##A[CHN] -= METER_FALLOFF / UPDATE_FREQ; \
-		self->p_max_##A[CHN] = MAX(-INFINITY, self->p_max_##A[CHN]); \
+		self->p_max_##A[CHN] -= self->meter_falloff; \
+		self->p_max_##A[CHN] = MAX(peak, self->p_max_##A[CHN]); \
 		forge_kvcontrolmessage(&self->forge, &self->uris, ID, self->p_max_##A[CHN]); \
 	} \
 }
 
-/* meter fall off */
+/* RMS meter */
 #define PKF(A,CHN,ID) \
 { \
 	float dbp = VALTODB(sqrt(self->p_peak_##A##M[CHN])); \
 	if (dbp > self->p_vpeak_##A[CHN]) { \
 		self->p_vpeak_##A[CHN] = dbp; \
+	} else if (self->meter_falloff == 0) { \
+		self->p_vpeak_##A[CHN] = dbp; \
 	} else { \
-		self->p_vpeak_##A[CHN] -= METER_FALLOFF / UPDATE_FREQ; \
-		self->p_vpeak_##A[CHN] = MAX(-INFINITY, self->p_vpeak_##A[CHN]); \
+		self->p_vpeak_##A[CHN] -= self->meter_falloff; \
+		self->p_vpeak_##A[CHN] = MAX(dbp, self->p_vpeak_##A[CHN]); \
 	} \
 	forge_kvcontrolmessage(&self->forge, &self->uris, ID, (self->p_vpeak_##A [CHN])); \
 }
@@ -606,6 +642,8 @@ instantiate(const LV2_Descriptor*     descriptor,
 	self->peak_integrate_max = PEAK_INTEGRATION_MAX * rate;
 	self->peak_integrate_pref = PEAK_INTEGRATION_TIME * rate;
 	self->phase_integrate_max = PHASE_INTEGRATION_TIME * rate;
+	self->meter_falloff = METER_FALLOFF / UPDATE_FREQ;
+	self->peak_hold = PEAK_HOLD_TIME * UPDATE_FREQ;
 
 	assert(self->peak_integrate_max >= 0);
 	assert(self->peak_integrate_max <= self->peak_integrate_max);

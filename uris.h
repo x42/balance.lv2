@@ -31,7 +31,7 @@
 #define BLC__control  BLC_URI "#control"
 #define BLC__meteron  BLC_URI "#meteron"
 #define BLC__meteroff BLC_URI "#meteroff"
-#define BLC__meterint BLC_URI "#meterint"
+#define BLC__metercfg BLC_URI "#metercfg"
 
 typedef struct {
 	LV2_URID atom_Blank;
@@ -48,7 +48,7 @@ typedef struct {
 
 	LV2_URID blc_meters_on;
 	LV2_URID blc_meters_off;
-	LV2_URID blc_meters_int;
+	LV2_URID blc_meters_cfg;
 
 } balanceURIs;
 
@@ -88,7 +88,7 @@ map_balance_uris(LV2_URID_Map* map, balanceURIs* uris)
 
 	uris->blc_meters_on       = map->map(map->handle, BLC__meteron);
 	uris->blc_meters_off      = map->map(map->handle, BLC__meteroff);
-	uris->blc_meters_int      = map->map(map->handle, BLC__meterint);
+	uris->blc_meters_cfg      = map->map(map->handle, BLC__metercfg);
 }
 
 
