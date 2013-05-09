@@ -393,7 +393,10 @@ static void notifyPlugin(PuglView* view, int elem) {
     return;
   }
   if (elem == 15) {
-    forge_message_kv(ui, ui->uris.blc_meters_cfg, 2, rint(ui->ctrls[elem].cur) / 4.0);
+    float val = rint(ui->ctrls[elem].cur)/4.0;
+    if (val > 10.0) val = 0;
+    if (val <= 0.0) val = 0;
+    forge_message_kv(ui, ui->uris.blc_meters_cfg, 2, val);
     return;
   }
   if (elem > 6 && elem < 12) {
@@ -533,7 +536,7 @@ void dialfmt_meterint(PuglView* view, char* out, int elem) {
 void dialfmt_meterhold(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   float v = rint(ui->ctrls[elem].cur) / 4.0;
-  if (v == 0)
+  if (v <= 0 || v > 10.0)
     sprintf(out, "inf");
   else
     sprintf(out, "%.2fs", v);
@@ -1581,7 +1584,7 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   // PEAK_INTEGRATION_TIME * 10 --  dlf value from balance.c
   CTRLELEM(13, OBJ_DIAL,   0, 500, 50,   -5.0,   0.0,  1.5, 1.5,  .5, 1, dialfmt_meterint); // level integration 1/10 ms
   CTRLELEM(14, OBJ_DIAL,   -5,  0,  -3,   -5.0, -2.0,  1.5, 1.5,  .5, 1, dialfmt_meterfall); // level falloff
-  CTRLELEM(15, OBJ_DIAL,    0,  40,  8,   -5.0, -4.0,  1.5, 1.5,  .5, 1, dialfmt_meterhold); // peak hold
+  CTRLELEM(15, OBJ_DIAL,    1,  41,  8,   -5.0, -4.0,  1.5, 1.5,  .5, 1, dialfmt_meterhold); // peak hold
 
   CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
   CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode
