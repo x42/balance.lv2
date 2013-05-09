@@ -324,6 +324,7 @@ static void update_meter_cfg(BalanceControl* self, int key, float val) {
 		case 1:
 				self->meter_falloff = MAX(0, val / UPDATE_FREQ);
 				self->meter_falloff = MIN(self->meter_falloff, 1000);
+			break;
 		case 2:
 				self->peak_hold = MAX(0, val * UPDATE_FREQ);
 				self->peak_hold = MIN(self->peak_hold, 60 * UPDATE_FREQ);
