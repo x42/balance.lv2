@@ -338,6 +338,10 @@ static void update_meter_cfg(BalanceControl* self, int key, float val) {
 					self->p_max_out[i] = -INFINITY;
 				}
 			}
+			forge_kvcontrolmessage(&self->forge, &self->uris, PEAK_IN_LEFT, self->p_max_in[C_LEFT]);
+			forge_kvcontrolmessage(&self->forge, &self->uris, PEAK_IN_RIGHT, self->p_max_in[C_RIGHT]);
+			forge_kvcontrolmessage(&self->forge, &self->uris, PEAK_OUT_LEFT, self->p_max_out[C_LEFT]);
+			forge_kvcontrolmessage(&self->forge, &self->uris, PEAK_OUT_RIGHT, self->p_max_out[C_RIGHT]);
 			break;
 
 		default:
