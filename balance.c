@@ -37,7 +37,7 @@
 #define UPDATE_FREQ (30.0)   // Hz
 #define PEAK_HOLD_TIME (2.0) // seconds
 
-#define PEAK_INTEGRATION_MAX (.05)    // seconds -- used for buffer size limit
+#define PEAK_INTEGRATION_MAX (0.05)   // seconds -- used for buffer size limit
 #define PEAK_INTEGRATION_TIME (0.005) // seconds -- must be >=0; should be <= PEAK_INTEGRATION_MAX 
 #define PHASE_INTEGRATION_TIME (.5)   // seconds -- must be > 0
 
@@ -317,7 +317,7 @@ static void update_meter_cfg(BalanceControl* self, int key, float val) {
 	switch (key) {
 		case 0:
 			if (val >=0 && val <= self->peak_integrate_max) {
-				self->peak_integrate_pref = val;
+				self->peak_integrate_pref = val * self->samplerate;
 			}
 			reset_uicom(self);
 			break;
