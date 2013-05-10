@@ -1013,16 +1013,16 @@ onDisplay(PuglView* view)
   const GLfloat no_shininess[] = { 128.0 };
   const GLfloat high_shininess[] = { 5.0 };
 
-  const GLfloat mat_strip[] =  { 0.05, 0.05, 0.05, 1.0 };
-  const GLfloat mat_dial[] =   { 0.10, 0.10, 0.10, 1.0 };
-  const GLfloat mat_button[] = { 0.20, 0.20, 0.20, 1.0 };
-  const GLfloat mat_switch[] = { 1.0, 1.0, 0.94, 1.0 };
-  const GLfloat glow_red[] =   { 1.0, 0.0, 0.00, 0.3 };
+  const GLfloat mat_strip[] =  {0.05, 0.05, 0.05, 1.0 };
+  const GLfloat mat_dial[] =   {0.10, 0.10, 0.10, 1.0 };
+  const GLfloat mat_button[] = {0.20, 0.20, 0.20, 1.0 };
+  const GLfloat mat_switch[] = {1.0 , 1.0 , 0.94, 1.0 };
+  const GLfloat glow_red[] =   {1.0 , 0.0 , 0.0 , 0.3 };
   const GLfloat lamp_blu[] =   {0.10, 0.10, 0.40, 1.0 };
-  const GLfloat lamp_grn[] =   {0.10, 0.40, 0.10, 1.0 };
+  const GLfloat lamp_grn[] =   {0.0 , 0.40, 0.0 , 1.0 };
   const GLfloat text_grn[] =   {0.10, 0.95, 0.15, 1.0};
   const GLfloat text_gry[] =   {0.75, 0.75, 0.75, 1.0};
-  const GLfloat shadegry[] =   {0.1, 0.1, 0.1, 0.5};
+  const GLfloat shadegry[] =   {0.1 , 0.1 , 0.1 , 0.5};
 
   if (!ui->initialized) {
     /* initialization needs to happen from event context
