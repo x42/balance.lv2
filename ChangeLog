@@ -1,3 +1,8 @@
+2013-05-11 (0.3.2)  Robin Gareus <robin@gareus.org>
+* allow to configure meter (integration and peak-hold times)
+* resizable window
+* small tweaks to improve usability
+
 2013-05-05 (0.3.1)  Robin Gareus <robin@gareus.org>
 * fix peak meter
 * use absolute non-integrated max for peak-hold
