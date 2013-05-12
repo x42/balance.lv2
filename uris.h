@@ -32,6 +32,7 @@
 #define BLC__meteron  BLC_URI "#meteron"
 #define BLC__meteroff BLC_URI "#meteroff"
 #define BLC__metercfg BLC_URI "#metercfg"
+#define BLC__state    BLC_URI "#state"
 
 typedef struct {
 	LV2_URID atom_Blank;
@@ -41,6 +42,8 @@ typedef struct {
 	LV2_URID atom_URID;
 	LV2_URID atom_eventTransfer;
 	LV2_URID atom_Sequence;
+
+	LV2_URID blc_state;
 
 	LV2_URID blc_control;
 	LV2_URID blc_cckey;
@@ -68,7 +71,10 @@ enum {
 	PEAK_IN_RIGHT,
 	PEAK_OUT_LEFT,
 	PEAK_OUT_RIGHT,
-	PHASE_OUT
+	PHASE_OUT,
+	CFG_INTEGRATE,
+	CFG_FALLOFF,
+	CFG_HOLDTIME
 };
 
 
@@ -82,6 +88,8 @@ map_balance_uris(LV2_URID_Map* map, balanceURIs* uris)
 	uris->atom_URID          = map->map(map->handle, LV2_ATOM__URID);
 	uris->atom_eventTransfer = map->map(map->handle, LV2_ATOM__eventTransfer);
   uris->atom_Sequence      = map->map(map->handle, LV2_ATOM__Sequence);
+	uris->blc_state          = map->map(map->handle, BLC__state);
+
 	uris->blc_cckey          = map->map(map->handle, BLC__cckey);
 	uris->blc_ccval          = map->map(map->handle, BLC__ccval);
 	uris->blc_control        = map->map(map->handle, BLC__control);

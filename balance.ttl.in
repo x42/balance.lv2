@@ -7,6 +7,7 @@
 @prefix pg:    <http://lv2plug.in/ns/ext/port-groups#> .
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
+@prefix state: <http://lv2plug.in/ns/ext/state#> .
 
 <http://gareus.org/rgareus#me>
 	a foaf:Person ;
@@ -21,6 +22,7 @@
 	doap:name "Stereo Balance Control";
 	lv2:optionalFeature lv2:hardRTCapable ;
 	lv2:requiredFeature urid:map ;
+	lv2:extensionData state:interface ;
 	lv2:port [
 		a lv2:InputPort ,
 			lv2:ControlPort ;

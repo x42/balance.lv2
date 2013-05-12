@@ -506,12 +506,12 @@ static void processLinkedMotion(PuglView* view, int elem, float dx, float dy) {
  * format values
  */
 
-void dialfmt_trim(PuglView* view, char* out, int elem) {
+static void dialfmt_trim(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%+02.1fdB", ui->ctrls[elem].cur);
 }
 
-void dialfmt_balance(PuglView* view, char* out, int elem) {
+static void dialfmt_balance(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   const int p= rint(ui->ctrls[elem].cur * 100);
   if (p < 0) {
@@ -523,17 +523,17 @@ void dialfmt_balance(PuglView* view, char* out, int elem) {
   }
 }
 
-void dialfmt_delay(PuglView* view, char* out, int elem) {
+static void dialfmt_delay(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%.0fsm", ui->ctrls[elem].cur);
 }
 
-void dialfmt_meterint(PuglView* view, char* out, int elem) {
+static void dialfmt_meterint(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   sprintf(out, "%.1fms", ui->ctrls[elem].cur / 10.0);
 }
 
-void dialfmt_meterhold(PuglView* view, char* out, int elem) {
+static void dialfmt_meterhold(PuglView* view, char* out, int elem) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
   float v = rint(ui->ctrls[elem].cur) / 4.0;
   if (v <= 0 || v > 10.0)
@@ -542,8 +542,7 @@ void dialfmt_meterhold(PuglView* view, char* out, int elem) {
     sprintf(out, "%.2fs", v);
 }
 
-
-void dialfmt_meterfall(PuglView* view, char* out, int elem) {
+static void dialfmt_meterfall(PuglView* view, char* out, int elem) {
   switch ((int)vmap_val(view, elem)) {
     case 0:
       sprintf(out, "6.6 dB/sec");
@@ -566,6 +565,22 @@ void dialfmt_meterfall(PuglView* view, char* out, int elem) {
     default:
       break;
   }
+}
+
+static void parse_meterfall(PuglView* view, int elem, float val) {
+  BLCui* ui = (BLCui*)puglGetHandle(view);
+  int v = rint(val * 10.0);
+  switch (v) {
+    case  66: ui->ctrls[elem].cur = 0; break;
+    case  88: ui->ctrls[elem].cur = 1; break;
+    case 133: ui->ctrls[elem].cur = 2; break;
+    case 320: ui->ctrls[elem].cur = 3; break;
+    case 700: ui->ctrls[elem].cur = 4; break;
+    case   0: ui->ctrls[elem].cur = 5; break;
+    default:
+	      return;
+  }
+  ui->ctrls[elem].cur += ui->ctrls[elem].min;
 }
 
 static float iec_scale(float db) {
@@ -1718,6 +1733,9 @@ port_event(LV2UI_Handle handle,
     case PEAK_OUT_LEFT:   ui->p_peak_out[0] = iec_scale(v) * 0.01; break;
     case PEAK_OUT_RIGHT:  ui->p_peak_out[1] = iec_scale(v) * 0.01; break;
     case PHASE_OUT:       ui->p_phase_out = v; break;
+    case CFG_INTEGRATE:   ui->ctrls[13].cur = v * 10000.0; break;
+    case CFG_FALLOFF:     parse_meterfall(ui->view, 14, v); break;
+    case CFG_HOLDTIME:    ui->ctrls[15].cur = v * 4.0; break;
     default:
       return;
   }

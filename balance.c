@@ -24,6 +24,7 @@
 #include <assert.h>
 
 #include "lv2/lv2plug.in/ns/lv2core/lv2.h"
+#include "lv2/lv2plug.in/ns/ext/state/state.h"
 #include "uris.h"
 
 #define MAXDELAY (2001)
@@ -38,7 +39,7 @@
 #define PEAK_HOLD_TIME (2.0) // seconds
 
 #define PEAK_INTEGRATION_MAX (0.05)   // seconds -- used for buffer size limit
-#define PEAK_INTEGRATION_TIME (0.005) // seconds -- must be >=0; should be <= PEAK_INTEGRATION_MAX 
+#define PEAK_INTEGRATION_TIME (0.005) // seconds -- must be >=0; should be <= PEAK_INTEGRATION_MAX
 #define PHASE_INTEGRATION_TIME (.5)   // seconds -- must be > 0
 
 #define SIGNUM(a)  ( (a) < 0 ? -1 : 1)
@@ -129,6 +130,8 @@ typedef struct {
 	float p_max_in[CHANNELS];  // [dbFS]
 	float p_max_out[CHANNELS]; // [dbFS]
 
+	int   queue_stateswitch;
+	float state[3];
 } BalanceControl;
 
 #define DLYWITHGAIN(GAIN) \
@@ -313,6 +316,12 @@ static void reset_uicom(BalanceControl* self) {
 	self->p_peakcnt  = 0;
 }
 
+static void send_cfg_to_ui(BalanceControl* self) {
+	forge_kvcontrolmessage(&self->forge, &self->uris, CFG_INTEGRATE, self->peak_integrate_pref / self->samplerate);
+	forge_kvcontrolmessage(&self->forge, &self->uris, CFG_FALLOFF, self->meter_falloff * (float) UPDATE_FREQ);
+	forge_kvcontrolmessage(&self->forge, &self->uris, CFG_HOLDTIME, self->peak_hold / (float) UPDATE_FREQ);
+}
+
 static void update_meter_cfg(BalanceControl* self, int key, float val) {
 	switch (key) {
 		case 0:
@@ -365,6 +374,25 @@ run(LV2_Handle instance, uint32_t n_samples)
   lv2_atom_forge_set_buffer(&self->forge, (uint8_t*)self->notify, capacity);
   lv2_atom_forge_sequence_head(&self->forge, &self->frame, 0);
 
+  /* reset after state restore */
+	if (self->queue_stateswitch) {
+		self->queue_stateswitch = 0;
+		self->peak_integrate_pref = self->state[0] * self->samplerate;
+		self->meter_falloff = self->state[1] / UPDATE_FREQ;
+		self->peak_hold = self->state[2] * UPDATE_FREQ;
+
+		self->peak_integrate_pref = MAX(0, self->peak_integrate_pref);
+		self->peak_integrate_pref = MIN(self->peak_integrate_pref, self->peak_integrate_max);
+
+		self->meter_falloff = MAX(0, self->meter_falloff);
+		self->meter_falloff = MIN(self->meter_falloff, 1000);
+
+		self->peak_hold = MAX(0, self->peak_hold);
+		self->peak_hold = MIN(self->peak_hold, 60 * UPDATE_FREQ);
+		reset_uicom(self);
+		send_cfg_to_ui(self);
+	}
+
   /* Process incoming events from GUI */
   if (self->control) {
     LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(self->control)->body);
@@ -374,6 +402,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 				if (obj->body.otype == self->uris.blc_meters_on) {
 					if (self->uicom_active == 0) {
 						reset_uicom(self);
+						send_cfg_to_ui(self);
 						self->uicom_active = 1;
 					}
 				}
@@ -668,6 +697,7 @@ instantiate(const LV2_Descriptor*     descriptor,
 	self->uicom_active = 0;
 	self->c_monomode = 0;
 	self->samplerate = rate;
+	self->queue_stateswitch = 0;
 
 	reset_uicom(self);
 
@@ -727,6 +757,70 @@ connect_port(LV2_Handle instance,
 	}
 }
 
+static LV2_State_Status
+save(LV2_Handle                instance,
+     LV2_State_Store_Function  store,
+     LV2_State_Handle          handle,
+     uint32_t                  flags,
+     const LV2_Feature* const* features)
+{
+	BalanceControl* self = (BalanceControl*)instance;
+
+	char cfg[1024];
+	int  off = 0;
+
+	off += sprintf(cfg + off, "peak_integrate=%f\n", self->peak_integrate_pref / self->samplerate);
+	off += sprintf(cfg + off, "meter_falloff=%f\n", self->meter_falloff * (float) UPDATE_FREQ);
+	off += sprintf(cfg + off, "peak_hold=%f\n", self->peak_hold / (float) UPDATE_FREQ);
+
+	store(handle, self->uris.blc_state,
+			cfg, strlen(cfg) + 1,
+			self->uris.atom_String,
+			LV2_STATE_IS_POD | LV2_STATE_IS_PORTABLE);
+	return LV2_STATE_SUCCESS;
+}
+
+static LV2_State_Status
+restore(LV2_Handle                  instance,
+        LV2_State_Retrieve_Function retrieve,
+        LV2_State_Handle            handle,
+        uint32_t                    flags,
+        const LV2_Feature* const*   features)
+{
+	BalanceControl* self = (BalanceControl*)instance;
+  size_t   size;
+	uint32_t type;
+	uint32_t valflags;
+	const void* value = retrieve(handle, self->uris.blc_state, &size, &type, &valflags);
+
+	if (!value) {
+		return LV2_STATE_ERR_UNKNOWN;
+	}
+
+	const char* cfg = (const char*)value;
+	const char *te, *ts = cfg;
+
+	while (ts && *ts && (te=strchr(ts, '\n'))) {
+		char *val;
+		char kv[1024];
+		memcpy(kv, ts, te-ts);
+		kv[te-ts]=0;
+		if((val=strchr(kv,'='))) {
+			*val=0;
+			if (!strcmp(kv, "peak_integrate")) {
+				self->state[0] = atof(val+1);
+			} else if (!strcmp(kv, "meter_falloff")) {
+				self->state[1] = atof(val+1);
+			} else if (!strcmp(kv, "peak_hold")) {
+				self->state[2] = atof(val+1);
+			}
+		}
+		ts=te+1;
+	}
+	self->queue_stateswitch = 1;
+  return LV2_STATE_SUCCESS;
+}
+
 static void
 cleanup(LV2_Handle instance)
 {
@@ -743,6 +837,10 @@ cleanup(LV2_Handle instance)
 const void*
 extension_data(const char* uri)
 {
+  static const LV2_State_Interface  state  = { save, restore };
+  if (!strcmp(uri, LV2_STATE__interface)) {
+    return &state;
+  }
 	return NULL;
 }
 
