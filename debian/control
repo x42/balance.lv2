@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Robin Gareus <robin@gareus.org>
 Build-Depends: debhelper (>= 8),
  libftgl-dev,
- libglu1-mesa-dev, | libglu-dev,
+ libglu1-mesa-dev | libglu-dev,
  libx11-dev,
  lv2-dev (>=1.0.0~dfsg2-2),
  fonts-freefont-ttf
