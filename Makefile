@@ -125,12 +125,13 @@ endif
 $(LV2NAME)$(LIB_EXT): balance.c uris.h
 	$(CC) $(CFLAGS) \
 	  -o $(LV2NAME)$(LIB_EXT) balance.c \
-	  $(LDFLAGS) $(LOADLIBES) -shared $(LV2LDFLAGS)
+	  -shared $(LDFLAGS) $(LV2LDFLAGS) $(LOADLIBES)
 
 $(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS)
-	$(CC) $(CFLAGS) \
-		-o $(LV2GUI)$(LIB_EXT) ui.c \
-		$(LDFLAGS) $(UICFLAGS) $(UILIBS) -shared $(LV2LDFLAGS)
+	$(CC) \
+		$(CFLAGS) $(UICFLAGS) \
+		-o $(LV2GUI)$(LIB_EXT)  ui.c \
+		-shared $(LV2LDFLAGS) $(LDFLAGS) $(UILIBS)
 
 # install/uninstall/clean target definitions
 
