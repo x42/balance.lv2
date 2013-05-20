@@ -17,7 +17,7 @@ LV2NAME=balance
 LV2GUI=balanceUI
 BUNDLE=balance.lv2
 
-CFLAGS+=-fPIC -std=c99
+override CFLAGS+=-fPIC -std=c99
 TX=textures/
 
 IS_OSX=
@@ -27,7 +27,6 @@ ifeq ($(UNAME),Darwin)
   LV2LDFLAGS=-dynamiclib
   LIB_EXT=.dylib
 else
-  CFLAGS+= -DHAVE_MEMSTREAM
   LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
   LIB_EXT=.so
 endif
@@ -38,7 +37,7 @@ targets=$(LV2NAME)$(LIB_EXT)
 ifeq ($(shell pkg-config --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
 else
-  CFLAGS+=`pkg-config --cflags lv2`
+  override CFLAGS+=`pkg-config --cflags lv2`
 endif
 
 # optional UI
@@ -71,7 +70,7 @@ endif
 LV2UIREQ=
 # check for LV2 idle thread -- requires 'lv2', atleast_version='1.4.1
 ifeq ($(shell pkg-config --atleast-version=1.4.2 lv2 || echo no), no)
-  CFLAGS+=-DOLD_SUIL
+  UICFLAGS+=-DOLD_SUIL
 else
   LV2UIREQ=lv2:requiredFeature ui:idle;\\n\\tlv2:extensionData ui:idle;
 endif
@@ -87,14 +86,14 @@ ifeq ($(HAVE_UI), yes)
     UI_TYPE=CocoaUI
   else
     UIDEPS+=pugl/pugl_x11.c
-    CFLAGS+=`pkg-config --cflags glu`
+    UICFLAGS+=`pkg-config --cflags glu`
     UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu`
     UI_TYPE=X11UI
   endif
-  CFLAGS+=`pkg-config --cflags ftgl`
+  override CFLAGS+=`pkg-config --cflags ftgl`
   UILIBS+=`pkg-config --libs ftgl`
-  CFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
-  CFLAGS+=-DFONTSIZE=$(FONTSIZE)
+  override CFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
+  override CFLAGS+=-DFONTSIZE=$(FONTSIZE)
   targets+=$(LV2GUI)$(LIB_EXT)
 else
   $(warning "!!")
