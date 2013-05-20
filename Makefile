@@ -122,13 +122,12 @@ ifeq ($(HAVE_UI), yes)
 endif
 
 $(LV2NAME)$(LIB_EXT): balance.c uris.h
-	$(CC) $(CFLAGS) \
+	$(CC) $(CPPFLAGS) $(CFLAGS) \
 	  -o $(LV2NAME)$(LIB_EXT) balance.c \
-	  -shared $(LDFLAGS) $(LV2LDFLAGS) $(LOADLIBES)
+	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 
 $(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS)
-	$(CC) \
-		$(CFLAGS) $(UICFLAGS) \
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(UICFLAGS) \
 		-o $(LV2GUI)$(LIB_EXT)  ui.c \
 		-shared $(LV2LDFLAGS) $(LDFLAGS) $(UILIBS)
 
