@@ -545,19 +545,19 @@ static void dialfmt_meterhold(PuglView* view, char* out, int elem) {
 static void dialfmt_meterfall(PuglView* view, char* out, int elem) {
   switch ((int)vmap_val(view, elem)) {
     case 0:
-      sprintf(out, "6.6 dB/sec");
+      sprintf(out, "6.6 dB/s");
       break;
     case 1:
-      sprintf(out, "8.8 dB/sec");
+      sprintf(out, "8.8 dB/s");
       break;
     case 2:
-      sprintf(out, "13.3 dB/sec");
+      sprintf(out, "13.3 dB/s");
       break;
     case 3:
-      sprintf(out, "32 dB/sec");
+      sprintf(out, "32 dB/s");
       break;
     case 4:
-      sprintf(out, "70 db/sec");
+      sprintf(out, "70 db/s");
       break;
     case 5:
       sprintf(out, "off");
@@ -983,6 +983,8 @@ onReshape(PuglView* view, int width, int height)
   glLoadIdentity();
   glOrtho(-1.0, 1.0, -invaspect, invaspect, 3.0, -3.0);
   glViewport(0, 0, ui->width, ui->height);
+  //glFrustum(-1.0, 1.0, -invaspect, invaspect, 3.0, -3.0);
+  //gluPerspective(80, 1.0/invaspect, -3.0, 3.0);
 
   glRotatef(ui->rot[0], 0, 1, 0);
   glRotatef(ui->rot[1], 1, 0, 0);
@@ -1170,7 +1172,7 @@ onDisplay(PuglView* view)
 	render_text(view, tval, -y, -.52, x-.01, 6, text_grn);
       }
       if (i == 13) {
-	render_text(view, "Level Meter (integ, fall-off, hold)", -9.0, -.52, x-.01, 5, text_grn);
+	render_text(view, "Level Meter Times (integration, fall-off, hold)", -9.0, -.52, x-.01, 5, text_grn);
       }
 
       glMatrixMode(GL_PROJECTION);
@@ -1597,9 +1599,9 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
   CTRLELEM(2,  OBJ_PUSHBUTTON, 0, 1, 0,  0.72,  3.8,  1.0, 1.0, 0.7, 7, NULL); // phaseR
 
   // PEAK_INTEGRATION_TIME * 10 --  dlf value from balance.c
-  CTRLELEM(13, OBJ_DIAL,   0, 500, 50,   -5.0,   0.0,  1.5, 1.5,  .5, 1, dialfmt_meterint); // level integration 1/10 ms
-  CTRLELEM(14, OBJ_DIAL,   -5,  0,  -3,   -5.0, -2.0,  1.5, 1.5,  .5, 1, dialfmt_meterfall); // level falloff
-  CTRLELEM(15, OBJ_DIAL,    1,  41,  8,   -5.0, -4.0,  1.5, 1.5,  .5, 1, dialfmt_meterhold); // peak hold
+  CTRLELEM(13, OBJ_DIAL,   0, 500, 50,   -5.0,  -1.00,  1.5, 1.5,  .5, 1, dialfmt_meterint); // level integration 1/10 ms
+  CTRLELEM(14, OBJ_DIAL,   -5,  0,  -3,  -5.0,  -2.75,  1.5, 1.5,  .5, 1, dialfmt_meterfall); // level falloff
+  CTRLELEM(15, OBJ_DIAL,    1,  41,  8,  -5.0,  -4.50,  1.5, 1.5,  .5, 1, dialfmt_meterhold); // peak hold
 
   CTRLELEM(3,  OBJ_DIAL, -1, 1, 0,         0,  1.2,  1.5, 1.5, 1, 1, dialfmt_balance); // balance
   CTRLELEM(4,  OBJ_DIAL,  -2, 0, -2,     2.6,  0.8,  1.5, 1.5, .5, 1, NULL); // mode

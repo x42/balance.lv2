@@ -100,4 +100,5 @@ Thanks
 ------
 Many thanks to all who contributed ideas and feedback. In particular
 Chris 'oofus' Goddard, who inspired the current signal flow, provided
-the diagram and beta-tested the plugin.
+the diagram and beta-tested the plugin. As well as tom^_ for feedback
+on the GUI in general.
