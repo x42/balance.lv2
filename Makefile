@@ -128,7 +128,7 @@ $(LV2NAME)$(LIB_EXT): balance.c uris.h
 
 $(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(UICFLAGS) \
-		-o $(LV2GUI)$(LIB_EXT)  ui.c \
+		-o $(LV2GUI)$(LIB_EXT) ui.c \
 		-shared $(LV2LDFLAGS) $(LDFLAGS) $(UILIBS)
 
 # install/uninstall/clean target definitions
@@ -142,7 +142,8 @@ ifeq ($(HAVE_UI), yes)
 endif
 
 uninstall:
-	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/*.ttl
+	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/manifest.ttl
+	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME).ttl
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2NAME)$(LIB_EXT)
 	rm -f $(DESTDIR)$(LV2DIR)/$(BUNDLE)/$(LV2GUI)$(LIB_EXT)
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
