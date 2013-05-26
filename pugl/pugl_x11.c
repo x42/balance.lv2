@@ -55,6 +55,7 @@ static int attrListSgl[] = {
 	GLX_GREEN_SIZE, 4,
 	GLX_BLUE_SIZE, 4,
 	GLX_DEPTH_SIZE, 16,
+	GLX_ARB_multisample, 1,
 	None
 };
 
@@ -68,6 +69,7 @@ static int attrListDbl[] = {
 	GLX_GREEN_SIZE, 4,
 	GLX_BLUE_SIZE, 4,
 	GLX_DEPTH_SIZE, 16,
+	GLX_ARB_multisample, 1,
 	None
 };
 
