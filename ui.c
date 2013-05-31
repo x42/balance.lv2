@@ -1073,6 +1073,7 @@ onDisplay(PuglView* view)
   glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, no_shininess);
   glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, no_mat);
 
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE);
   glEnable(GL_TEXTURE_2D);
   glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_ADD);
   glBindTexture(GL_TEXTURE_2D, ui->texID[0]);
