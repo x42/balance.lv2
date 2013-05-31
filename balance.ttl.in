@@ -16,7 +16,7 @@
 	foaf:homepage <http://gareus.org/> .
 
 <http://gareus.org/oss/lv2/balance>
-	a lv2:Plugin, doap:Project;
+	a lv2:Plugin, lv2:SpatialPlugin , doap:Project;
 	doap:license <http://usefulinc.com/doap/licenses/gpl> ;
 	doap:maintainer <http://gareus.org/rgareus#me> ;
 	doap:name "Stereo Balance Control";
