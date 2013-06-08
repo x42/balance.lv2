@@ -23,6 +23,10 @@
 	lv2:optionalFeature lv2:hardRTCapable ;
 	lv2:requiredFeature urid:map ;
 	lv2:extensionData state:interface ;
+	rdfs:comment """balance.lv2 facilitates adjusting stereo-microphone recordings (X-Y, A-B, ORTF). But it also generally useful as 'Input Channel Conditioner'.
+	It allows for attenuating the signal on one of the channels as well as delaying the signals (move away from the microphone). To round off the feature-set channels can be swapped or the signal can be downmixed to mono after the delay.
+	It features a Phase-Correlation meter as well as peak programme meters according to IEC 60268-18 (5ms integration, 20dB/1.5 sec fall-off) for input and output signals.
+	The meters can be configure on the right side of the GUI, tilt it using the 'a' key.""" ;
 	lv2:port [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
@@ -81,7 +85,11 @@
 		] , [
 			rdfs:label "Seesaw - Equal Power" ;
 			rdf:value 2
-		]
+		];
+		rdfs:comment """The mode defines the behaviour of the balance control.
+		classic 'Balance' mode: Attenuate one channels at a time; no positive gain.
+		'Unity Gain - Equal Amplitude' mode: the behaviour of the attenuated channel is identical to 'Balance' mode. The gain of the previously untouched channel is raised so that the mono sum of both retains equal amplitude.
+		'Seesaw - Equal Power' mode: -6dB .. +6dB range, equal power distribution"""
 	] , [
 		a lv2:InputPort ,
 			lv2:ControlPort ;
