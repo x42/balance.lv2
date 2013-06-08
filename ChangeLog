@@ -1,3 +1,10 @@
+2013-05-13 (0.4.0)  Robin Gareus <robin@gareus.org>
+* clean up build system (CFLAGS)
+* fix meter-level text & alignment
+* address some openGL rendering issues
+* add LV2 plugin category
+* built-in documentation & port annotation
+
 2013-05-13 (0.3.3)  Robin Gareus <robin@gareus.org>
 * add state interface - save/restore level-meter config
 
