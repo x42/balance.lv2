@@ -8,6 +8,7 @@
 @prefix units: <http://lv2plug.in/ns/extensions/units#> .
 @prefix urid:  <http://lv2plug.in/ns/ext/urid#> .
 @prefix state: <http://lv2plug.in/ns/ext/state#> .
+@prefix rsz:   <http://lv2plug.in/ns/ext/resize-port#> .
 
 <http://gareus.org/rgareus#me>
 	a foaf:Person ;
@@ -181,5 +182,6 @@
 		atom:supports <http://gareus.org/oss/lv2/balance#control> ;
 		lv2:index 13 ;
 		lv2:symbol "notify" ;
-		lv2:name "plugin to UI communication"
+		lv2:name "plugin to UI communication" ;
+		rsz:minimumSize 1024;
 	] .
