@@ -1,4 +1,9 @@
 .gitignore export-ignore
 .gitattributes export-ignore
-debian export-ignore
-build-deb.sh export-ignore
+/debian export-ignore
+/build-deb.sh export-ignore
+
+/doc/screenshot* export-ignore
+/textures/fix_trigraphs.sh
+*.xcf export-ignore
+*.blend export-ignore
