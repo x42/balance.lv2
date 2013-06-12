@@ -1,4 +1,8 @@
-2013-05-13 (0.4.0)  Robin Gareus <robin@gareus.org>
+2013-06-12 (0.4.1)  Robin Gareus <robin@gareus.org>
+* resize-port sz:minimumSize (fix jack1 issue)
+* do not include production-files (xcf) in tar dist
+
+2013-06-08 (0.4.0)  Robin Gareus <robin@gareus.org>
 * clean up build system (CFLAGS)
 * fix meter-level text & alignment
 * address some openGL rendering issues

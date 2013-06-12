@@ -1,5 +1,5 @@
-balance.lv2 (0.4.0-1) unstable; urgency=low
+balance.lv2 (0.4.1-1) unstable; urgency=low
 
   * dummy entry -- this is a package for upstream testing
 
- -- Robin Gareus <robin@gareus.org>  Sat, 08 Jun 2013 08:01:02 +0200
+ -- Robin Gareus <robin@gareus.org>  Wed, 12 Jun 2013 15:06:39 +0200
