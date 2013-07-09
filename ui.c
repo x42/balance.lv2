@@ -1494,13 +1494,37 @@ onMouse(PuglView* view, int button, bool press, int x, int y)
  */
 
 #ifdef OLD_SUIL
+#define THREADSYNC
+
+#ifdef THREADSYNC
+static pthread_mutex_t msg_thread_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t data_ready = PTHREAD_COND_INITIALIZER;
+#endif
+
 static void* ui_thread(void* ptr)
 {
   BLCui* ui = (BLCui*)ptr;
+#ifdef THREADSYNC
+  pthread_mutex_lock (&msg_thread_lock);
+#endif
   while (!ui->exit) {
+#ifdef THREADSYNC
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    now.tv_nsec += 1000000000 / 50;
+    if (now.tv_nsec >= 1000000000) {
+      now.tv_nsec -= 1000000000;
+      now.tv_sec += 1;
+    }
+    pthread_cond_timedwait (&data_ready, &msg_thread_lock, &now);
+#else
     usleep(1000000 / 30); // FPS
+#endif
     puglProcessEvents(ui->view);
   }
+#ifdef THREADSYNC
+  pthread_mutex_unlock (&msg_thread_lock);
+#endif
   return NULL;
 }
 #else
@@ -1746,6 +1770,12 @@ port_event(LV2UI_Handle handle,
       return;
   }
   puglPostRedisplay(ui->view);
+#if (defined OLD_SUIL && defined THREADSYNC)
+  if (pthread_mutex_trylock (&msg_thread_lock) == 0) {
+    pthread_cond_signal (&data_ready);
+    pthread_mutex_unlock (&msg_thread_lock);
+  }
+#endif
 }
 
 /******************************************************************************
