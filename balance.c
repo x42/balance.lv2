@@ -603,7 +603,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 		PKM(out, C_LEFT,  PEAK_OUT_LEFT);
 		PKM(out, C_RIGHT, PEAK_OUT_RIGHT);
 
-#define RMSF(A) sqrt( ( (A) / (double)self->phase_integrate_max ) + 1.0e-23 )
+#define RMSF(A) sqrt( ( (A) / (double)self->phase_integrate_max ) + 1.0e-12 )
 		double phase = 0.0;
 		const double phasdiv = self->p_phase_outP + self->p_phase_outN;
 		if (phasdiv >= 1.0e-6) {
