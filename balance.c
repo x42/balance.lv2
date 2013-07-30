@@ -577,7 +577,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 /* RMS meter */
 #define PKF(A,CHN,ID) \
 { \
-	float dbp = VALTODB(sqrt(self->p_peak_##A##M[CHN])); \
+	float dbp = VALTODB(sqrt(2.0 * self->p_peak_##A##M[CHN])); \
 	if (dbp > self->p_vpeak_##A[CHN]) { \
 		self->p_vpeak_##A[CHN] = dbp; \
 	} else if (self->meter_falloff == 0) { \

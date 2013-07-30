@@ -926,13 +926,15 @@ gradient_box2d(PuglView* view,
 static void
 peak_meter(PuglView* view,
   const float x,
-  const float level, const float hold ) {
+  const float lvl, const float hold ) {
   const float y = -8.71;
   const GLfloat col_black[] =  { 0.0, 0.0, 0.0, 0.5 };
   const GLfloat col_peak18[]   =   { 0.0, 0.5, 0.0, .9 }; // .55
   const GLfloat col_peak9[]    =   { 0.0, 0.9, 0.0, .9 }; // .775
   const GLfloat col_peak2[]    =   { 0.8, 0.5, 0.0, .9 }; // .95
   const GLfloat col_peak[]     =   { 1.0, 0.0, 0.0, .9 };
+
+  const float level = MAX(0, lvl -.003);
 
   const float x0 = x-.09;
   const float x1 = x+.09;
@@ -962,10 +964,10 @@ peak_meter(PuglView* view,
   }
 
   if (hold > 0.02) {
-    const float phy = 17.04 * hold;
+    const float phy = MIN(18.02, 17.04 * hold);
     GLfloat col_hold[] =  { 1.0, 1.0, 0.0, 1.0 };
     if (hold >= 1.0) col_hold[1] = 0;
-    unity_box2d(view, x0, x1, y - .066 + phy, y + phy, -.02, col_hold);
+    unity_box2d(view, x0, x1, y - .033 + phy, y + phy + .033, -.02, col_hold);
   }
 }
 
