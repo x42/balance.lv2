@@ -1673,7 +1673,7 @@ instantiate(const LV2UI_Descriptor*   descriptor,
     return NULL;
   }
 
-  BLCui* ui = (BLCui*)malloc(sizeof(BLCui));
+  BLCui* ui = (BLCui*)calloc(1, sizeof(BLCui));
 
   ui->write      = write_function;
   ui->controller = controller;
