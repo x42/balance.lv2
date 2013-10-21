@@ -64,7 +64,7 @@ endif
 ifeq ($(IS_OSX), yes)
   HAVE_UI=$(shell pkg-config --exists ftgl && echo $(FONT_FOUND))
 else
-  HAVE_UI=$(shell pkg-config --exists glu ftgl && echo $(FONT_FOUND))
+  HAVE_UI=$(shell pkg-config --exists glu gl ftgl && echo $(FONT_FOUND))
 endif
 
 LV2UIREQ=
@@ -86,8 +86,8 @@ ifeq ($(HAVE_UI), yes)
     UI_TYPE=CocoaUI
   else
     UIDEPS+=pugl/pugl_x11.c
-    UICFLAGS+=`pkg-config --cflags glu`
-    UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu`
+    UICFLAGS+=`pkg-config --cflags glu gl`
+    UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu gl`
     UI_TYPE=X11UI
   endif
   override CFLAGS+=`pkg-config --cflags ftgl`
