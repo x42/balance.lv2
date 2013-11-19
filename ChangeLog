@@ -1,3 +1,13 @@
+2013-11-19 (0.4.3)  Robin Gareus <robin@gareus.org>
+* explicit built-dep on openGL
+
+2013-09-15 (0.4.2)  Robin Gareus <robin@gareus.org>
+* NaN protection
+* align RMS to sine-wave (not square wave)
+* implement GL-UI thread-synchronization
+* fix possible memory-leak (when re-opening ui)
+* update (C) and GPL (FSF address)
+
 2013-06-12 (0.4.1)  Robin Gareus <robin@gareus.org>
 * resize-port sz:minimumSize (fix jack1 issue)
 * do not include production-files (xcf) in tar dist
