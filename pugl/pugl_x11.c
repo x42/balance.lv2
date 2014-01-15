@@ -99,15 +99,21 @@ puglCreate(PuglNativeWindow parent,
 	if (!vi) {
 		vi = glXChooseVisual(impl->display, impl->screen, attrListSgl);
 		impl->doubleBuffered = False;
+#ifdef VERBOSE_PUGL
 		printf("singlebuffered rendering will be used, no doublebuffering available\n");
+#endif
 	} else {
 		impl->doubleBuffered = True;
+#ifdef VERBOSE_PUGL
 		printf("doublebuffered rendering available\n");
+#endif
 	}
 
 	int glxMajor, glxMinor;
 	glXQueryVersion(impl->display, &glxMajor, &glxMinor);
+#ifdef VERBOSE_PUGL
 	printf("GLX-Version %d.%d\n", glxMajor, glxMinor);
+#endif
 
 	impl->ctx = glXCreateContext(impl->display, vi, 0, GL_TRUE);
 
@@ -158,9 +164,13 @@ puglCreate(PuglNativeWindow parent,
 	XMapRaised(impl->display, impl->win);
 
 	if (glXIsDirect(impl->display, impl->ctx)) {
+#ifdef VERBOSE_PUGL
 		printf("DRI enabled\n");
+#endif
 	} else {
+#ifdef VERBOSE_PUGL
 		printf("No DRI available\n");
+#endif
 	}
 
 	XFree(vi);
