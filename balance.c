@@ -679,8 +679,8 @@ instantiate(const LV2_Descriptor*     descriptor,
 	self->peak_hold = PEAK_HOLD_TIME * UPDATE_FREQ;
 
 	assert(self->peak_integrate_max >= 0);
-	assert(self->peak_integrate_max <= self->peak_integrate_max);
 	assert(self->phase_integrate_max > 0);
+	assert(self->peak_integrate_max <= self->phase_integrate_max);
 
 	for (i=0; i < CHANNELS; ++i) {
 		self->c_amp[i] = 1.0;
