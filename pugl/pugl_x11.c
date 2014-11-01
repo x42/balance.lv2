@@ -100,19 +100,19 @@ puglCreate(PuglNativeWindow parent,
 		vi = glXChooseVisual(impl->display, impl->screen, attrListSgl);
 		impl->doubleBuffered = False;
 #ifdef VERBOSE_PUGL
-		printf("singlebuffered rendering will be used, no doublebuffering available\n");
+		printf("puGL: singlebuffered rendering will be used, no doublebuffering available\n");
 #endif
 	} else {
 		impl->doubleBuffered = True;
 #ifdef VERBOSE_PUGL
-		printf("doublebuffered rendering available\n");
+		printf("puGL: doublebuffered rendering available\n");
 #endif
 	}
 
 	int glxMajor, glxMinor;
 	glXQueryVersion(impl->display, &glxMajor, &glxMinor);
 #ifdef VERBOSE_PUGL
-	printf("GLX-Version %d.%d\n", glxMajor, glxMinor);
+	printf("puGL: GLX-Version : %d.%d\n", glxMajor, glxMinor);
 #endif
 
 	impl->ctx = glXCreateContext(impl->display, vi, 0, GL_TRUE);
@@ -165,16 +165,15 @@ puglCreate(PuglNativeWindow parent,
 
 	if (glXIsDirect(impl->display, impl->ctx)) {
 #ifdef VERBOSE_PUGL
-		printf("DRI enabled\n");
+		printf("puGL: DRI enabled\n");
 #endif
 	} else {
 #ifdef VERBOSE_PUGL
-		printf("No DRI available\n");
+		printf("puGL: No DRI available\n");
 #endif
 	}
 
 	XFree(vi);
-
 	return view;
 }
 
@@ -214,6 +213,7 @@ puglDisplay(PuglView* view)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
+	view->redisplay = false;
 	if (view->displayFunc) {
 		view->displayFunc(view);
 	}
@@ -223,7 +223,6 @@ puglDisplay(PuglView* view)
 		glXSwapBuffers(view->impl->display, view->impl->win);
 	}
 
-	view->redisplay = false;
 }
 
 static PuglKey
@@ -361,13 +360,15 @@ puglProcessEvents(PuglView* view)
 				}
 			}
 
-			if (!repeated && view->keyboardFunc) {
+			if (!repeated) {
 				KeySym sym = XLookupKeysym(&event.xkey, 0);
 				PuglKey special = keySymToSpecial(sym);
-				if (!special) {
-					view->keyboardFunc(view, false, sym);
-				} else if (view->specialFunc) {
-					view->specialFunc(view, false, special);
+				if (view->keyboardFunc) {
+					if (!special) {
+						view->keyboardFunc(view, false, sym);
+					} else if (view->specialFunc) {
+						view->specialFunc(view, false, special);
+					}
 				}
 			}
 		} break;
@@ -377,6 +378,7 @@ puglProcessEvents(PuglView* view)
 			            "WM_PROTOCOLS")) {
 				if (view->closeFunc) {
 					view->closeFunc(view);
+					view->redisplay = false;
 				}
 			}
 			break;

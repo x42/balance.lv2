@@ -37,21 +37,10 @@
 #    include "GL/gl.h"
 #endif
 
-#ifdef PUGL_SHARED
-#    ifdef _WIN32
-#        define PUGL_LIB_IMPORT __declspec(dllimport)
-#        define PUGL_LIB_EXPORT __declspec(dllexport)
-#    else
-#        define PUGL_LIB_IMPORT __attribute__((visibility("default")))
-#        define PUGL_LIB_EXPORT __attribute__((visibility("default")))
-#    endif
-#    ifdef PUGL_INTERNAL
-#        define PUGL_API PUGL_LIB_EXPORT
-#    else
-#        define PUGL_API PUGL_LIB_IMPORT
-#    endif
+#ifdef _WIN32
+#define PUGL_API
 #else
-#    define PUGL_API
+#define PUGL_API __attribute__((visibility("hidden")))
 #endif
 
 #ifdef __cplusplus
@@ -131,12 +120,12 @@ typedef enum {
    Keyboard modifier flags.
 */
 typedef enum {
-	PUGL_MOD_SHIFT = 1,       /**< Shift key */ 
+	PUGL_MOD_SHIFT = 1,       /**< Shift key */
 	PUGL_MOD_CTRL  = 1 << 1,  /**< Control key */
 	PUGL_MOD_ALT   = 1 << 2,  /**< Alt/Option key */
 	PUGL_MOD_SUPER = 1 << 3,  /**< Mod4/Command/Windows key */
 } PuglMod;
-	
+
 /**
    Handle for opaque user data.
 */
@@ -196,6 +185,8 @@ typedef void (*PuglReshapeFunc)(PuglView* view, int width, int height);
    so programs should handle any value gracefully.
 
    @param view The view being scrolled.
+   @param x The window-relative x coordinate of the pointer.
+   @param y The window-relative y coordinate of the pointer.
    @param dx The scroll x distance.
    @param dx The scroll y distance.
 */
@@ -205,7 +196,7 @@ typedef void (*PuglScrollFunc)(PuglView* view, int x, int y, float dx, float dy)
    A function called when a special key is pressed or released.
 
    This callback allows the use of keys that do not have unicode points.  Note
-   that some non-printable keys 
+   that some non-printable keys
    @param view The view the event occured in.
    @param press True if the key was pressed, false if released.
    @param key The key pressed.
