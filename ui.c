@@ -325,7 +325,7 @@ static void forge_message_kv(BLCui* ui, LV2_URID uri, int key, float value) {
   lv2_atom_forge_set_buffer(&ui->forge, obj_buf, 1024);
 
   LV2_Atom_Forge_Frame set_frame;
-  LV2_Atom* msg = (LV2_Atom*)lv2_atom_forge_blank(&ui->forge, &set_frame, 1, uri);
+  LV2_Atom* msg = (LV2_Atom*)x_forge_object(&ui->forge, &set_frame, 1, uri);
   lv2_atom_forge_property_head(&ui->forge, ui->uris.blc_cckey, 0);
   lv2_atom_forge_int(&ui->forge, key);
   lv2_atom_forge_property_head(&ui->forge, ui->uris.blc_ccval, 0);
@@ -1741,7 +1741,7 @@ port_event(LV2UI_Handle handle,
   }
 
   LV2_Atom* atom = (LV2_Atom*)buffer;
-  if (atom->type != ui->uris.atom_Blank) {
+  if (atom->type != ui->uris.atom_Blank && atom->type != ui->uris.atom_Object) {
     return;
   }
 
