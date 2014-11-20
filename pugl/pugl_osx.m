@@ -37,6 +37,9 @@ __attribute__ ((visibility ("hidden")))
                      defer:(BOOL)flag;
 - (void) setPuglview:(PuglView*)view;
 - (BOOL) windowShouldClose:(id)sender;
+- (void) becomeKeyWindow:(id)sender;
+- (BOOL) canBecomeKeyWindow:(id)sender;
+@end
 @end
 
 @implementation SbfPuglWindow
@@ -69,6 +72,16 @@ __attribute__ ((visibility ("hidden")))
 	if (puglview->closeFunc)
 		puglview->closeFunc(puglview);
 	return YES;
+}
+
+- (void)becomeKeyWindow:(id)sender
+{
+
+}
+
+- (BOOL) canBecomeKeyWindow:(id)sender{
+	// forward key-events
+	return NO;
 }
 
 @end
@@ -357,17 +370,14 @@ puglCreate(PuglNativeWindow parent,
 		[window setPuglview:view];
 		[window setTitle:titleString];
 		impl->window = window;
-#if 0
 		if (resizable) {
 			[impl->glview setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
 		}
-#endif
 		[window setContentView:impl->glview];
 		[NSApp activateIgnoringOtherApps:YES];
 		[window makeFirstResponder:impl->glview];
 		[window makeKeyAndOrderFront:window];
 	}
-
 	return view;
 }
 
@@ -399,6 +409,7 @@ void
 puglPostRedisplay(PuglView* view)
 {
 	view->redisplay = true;
+	[view->impl->glview setNeedsDisplay: YES];
 }
 
 PuglNativeWindow

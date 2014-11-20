@@ -210,9 +210,10 @@ static void
 puglDisplay(PuglView* view)
 {
 	glXMakeCurrent(view->impl->display, view->impl->win, view->impl->ctx);
+#if 0
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-
+#endif
 	view->redisplay = false;
 	if (view->displayFunc) {
 		view->displayFunc(view);

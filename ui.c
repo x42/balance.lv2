@@ -1059,6 +1059,7 @@ onDisplay(PuglView* view)
     ftglSetFontFaceSize(ui->font_small, FONTSIZE, 72);
     ftglSetFontCharMap(ui->font_small, ft_encoding_unicode);
   }
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   updateLight(view);
 

@@ -37,10 +37,21 @@
 #    include "GL/gl.h"
 #endif
 
-#ifdef _WIN32
-#define PUGL_API
+#ifdef PUGL_SHARED
+#    ifdef _WIN32
+#        define PUGL_LIB_IMPORT __declspec(dllimport)
+#        define PUGL_LIB_EXPORT __declspec(dllexport)
+#    else
+#        define PUGL_LIB_IMPORT __attribute__((visibility("default")))
+#        define PUGL_LIB_EXPORT __attribute__((visibility("default")))
+#    endif
+#    ifdef PUGL_INTERNAL
+#        define PUGL_API PUGL_LIB_EXPORT
+#    else
+#        define PUGL_API PUGL_LIB_IMPORT
+#    endif
 #else
-#define PUGL_API __attribute__((visibility("hidden")))
+#    define PUGL_API
 #endif
 
 #ifdef __cplusplus
@@ -84,7 +95,7 @@ typedef enum {
 	PUGL_CHAR_ESCAPE    = 0x1B,
 	PUGL_CHAR_DELETE    = 0x7F
 } PuglChar;
-	
+
 /**
    Special (non-Unicode) keyboard keys.
 */
