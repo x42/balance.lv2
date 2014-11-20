@@ -95,7 +95,7 @@ ifeq ($(HAVE_UI), yes)
     UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu gl`
     UI_TYPE=X11UI
   endif
-  override CFLAGS+=`pkg-config --cflags ftgl`
+  override CFLAGS+=`pkg-config --cflags ftgl` -DUINQHACK=Blc
   UILIBS+=`pkg-config --libs ftgl`
   override CFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
   override CFLAGS+=-DFONTSIZE=$(FONTSIZE)
