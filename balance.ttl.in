@@ -170,7 +170,6 @@
 			lv2:InputPort ;
 		atom:bufferType atom:Sequence ;
 		lv2:designation lv2:control ;
-		atom:supports <http://gareus.org/oss/lv2/balance#control> ;
 		lv2:index 12 ;
 		lv2:symbol "control" ;
 		lv2:name "UI to plugin communication"
@@ -179,7 +178,6 @@
 			lv2:OutputPort ;
 		atom:bufferType atom:Sequence ;
 		lv2:designation lv2:control ;
-		atom:supports <http://gareus.org/oss/lv2/balance#control> ;
 		lv2:index 13 ;
 		lv2:symbol "notify" ;
 		lv2:name "plugin to UI communication" ;
