@@ -73,7 +73,7 @@ puglCreate(PuglNativeWindow parent,
 	view->width  = width;
 	view->height = height;
 	view->ontop  = ontop;
-	view->user_resizable = resizable;
+	view->user_resizable = resizable && !parent;
 
 	// FIXME: This is nasty, and pugl should not have static anything.
 	// Should class be a parameter?  Does this make sense on other platforms?
@@ -112,7 +112,7 @@ puglCreate(PuglNativeWindow parent,
 
 	impl->hwnd = CreateWindowEx(
 		WS_EX_TOPMOST,
-		classNameBuf, title, (resizable ? WS_SIZEBOX : 0) |
+		classNameBuf, title, (view->user_resizable ? WS_SIZEBOX : 0) |
 		(parent ? (WS_CHILD | WS_VISIBLE) : (WS_POPUPWINDOW | WS_CAPTION)),
 		0, 0, wr.right-wr.left, wr.bottom-wr.top,
 		(HWND)parent, NULL, NULL, NULL);
@@ -166,6 +166,9 @@ puglCreate(PuglNativeWindow parent,
 void
 puglDestroy(PuglView* view)
 {
+	if (!view) {
+		return;
+	}
 	wglMakeCurrent(NULL, NULL);
 	wglDeleteContext(view->impl->hglrc);
 	ReleaseDC(view->impl->hwnd, view->impl->hdc);
@@ -366,7 +369,7 @@ handleMessage(PuglView* view, UINT message, WPARAM wParam, LPARAM lParam)
 			ScreenToClient(view->impl->hwnd, &pt);
 			view->scrollFunc(
 				view, pt.x, pt.y,
-				GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA, 0);
+				0, GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
 		}
 		break;
 	case WM_MOUSEHWHEEL:
@@ -389,7 +392,14 @@ handleMessage(PuglView* view, UINT message, WPARAM wParam, LPARAM lParam)
 				view->specialFunc(view, message == WM_KEYDOWN, key);
 			}
 		} else if (view->keyboardFunc) {
-			view->keyboardFunc(view, message == WM_KEYDOWN, wParam);
+			static BYTE kbs[256];
+			if (GetKeyboardState(kbs) != FALSE) {
+				char lb[2];
+				UINT scanCode = (lParam >> 8) & 0xFFFFFF00;
+				if ( 1 == ToAscii(wParam, scanCode, kbs, (LPWORD)lb, 0)) {
+					view->keyboardFunc(view, message == WM_KEYDOWN, (char)lb[0]);
+				}
+			}
 		}
 		break;
 	case WM_QUIT:

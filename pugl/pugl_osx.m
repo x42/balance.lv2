@@ -116,6 +116,8 @@ __attribute__ ((visibility ("hidden")))
 - (void) rightMouseDragged:(NSEvent*)event;
 - (void) rightMouseDown:(NSEvent*)event;
 - (void) rightMouseUp:(NSEvent*)event;
+- (void) otherMouseDown:(NSEvent*)event;
+- (void) otherMouseUp:(NSEvent*)event;
 - (void) keyDown:(NSEvent*)event;
 - (void) keyUp:(NSEvent*)event;
 - (void) flagsChanged:(NSEvent*)event;
@@ -131,6 +133,9 @@ __attribute__ ((visibility ("hidden")))
 		NSOpenGLPFAAccelerated,
 		NSOpenGLPFAColorSize, 32,
 		NSOpenGLPFADepthSize, 32,
+		NSOpenGLPFAMultisample,
+		NSOpenGLPFASampleBuffers, 1,
+		NSOpenGLPFASamples, 4,
 		0
 	};
 	NSOpenGLPixelFormat* pixelFormat = [[NSOpenGLPixelFormat alloc]
@@ -171,6 +176,11 @@ __attribute__ ((visibility ("hidden")))
 
 		puglview->width  = width;
 		puglview->height = height;
+
+		[self removeTrackingArea:trackingArea];
+		[trackingArea release];
+		trackingArea = nil;
+		[self updateTrackingAreas];
 	}
 }
 
@@ -199,6 +209,7 @@ getModifiers(PuglView* view, NSEvent* ev)
 -(void)updateTrackingAreas
 {
 	if (trackingArea != nil) {
+		return;
 		[self removeTrackingArea:trackingArea];
 		[trackingArea release];
 	}
@@ -282,6 +293,24 @@ getModifiers(PuglView* view, NSEvent* ev)
 		NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
 		puglview->mods = getModifiers(puglview, event);
 		puglview->mouseFunc(puglview, 3, false, loc.x, puglview->height - loc.y);
+	}
+}
+
+- (void) otherMouseDown:(NSEvent*)event
+{
+	if (puglview->mouseFunc) {
+		NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
+		puglview->mods = getModifiers(puglview, event);
+		puglview->mouseFunc(puglview, [event buttonNumber], true, loc.x, puglview->height - loc.y);
+	}
+}
+
+- (void) otherMouseUp:(NSEvent*)event
+{
+	if (puglview->mouseFunc) {
+		NSPoint loc = [self convertPoint:[event locationInWindow] fromView:nil];
+		puglview->mods = getModifiers(puglview, event);
+		puglview->mouseFunc(puglview, [event buttonNumber], false, loc.x, puglview->height - loc.y);
 	}
 }
 
@@ -399,6 +428,9 @@ puglCreate(PuglNativeWindow parent,
 void
 puglDestroy(PuglView* view)
 {
+	if (!view) {
+		return;
+	}
 	view->impl->glview->puglview = NULL;
 	[view->impl->glview removeFromSuperview];
 	if (view->impl->window) {
