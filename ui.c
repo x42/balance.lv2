@@ -1586,10 +1586,6 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
     return -1;
   }
 
-  /* prepare meshes */
-  ui->vbo = (GLuint *)malloc(OBJECTS_COUNT * sizeof(GLuint));
-  ui->vinx = (GLuint *)malloc(OBJECTS_COUNT * sizeof(GLuint));
-
   /* Set up GL UI */
   ui->view = puglCreate(parent,
       "Stereo Balance Control",
@@ -1597,6 +1593,15 @@ static int blc_gui_setup(BLCui* ui, const LV2_Feature* const* features) {
       ui->width, ui->height,
       resize ? true : false,
       true, 0);
+
+  if (!ui->view) {
+    return -1;
+  }
+
+  /* prepare meshes */
+  ui->vbo = (GLuint *)malloc(OBJECTS_COUNT * sizeof(GLuint));
+  ui->vinx = (GLuint *)malloc(OBJECTS_COUNT * sizeof(GLuint));
+
   puglSetHandle(ui->view, ui);
   puglSetDisplayFunc(ui->view, onDisplay);
   puglSetReshapeFunc(ui->view, onReshape);
