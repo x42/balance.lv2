@@ -1687,6 +1687,9 @@ instantiate(const LV2UI_Descriptor*   descriptor,
 
   ui->write      = write_function;
   ui->controller = controller;
+#ifdef OLD_SUIL
+  ui->exit       = true; // thread not active
+#endif
 
   for (int i = 0; features[i]; ++i) {
     if (!strcmp(features[i]->URI, LV2_URID__map)) {
@@ -1721,8 +1724,10 @@ cleanup(LV2UI_Handle handle)
   BLCui* ui = (BLCui*)handle;
   forge_message_kv(ui, ui->uris.blc_meters_off, 0, 0);
 #ifdef OLD_SUIL
-  ui->exit = true;
-  pthread_join(ui->thread, NULL);
+  if (!ui->exit) {
+    ui->exit = true;
+    pthread_join(ui->thread, NULL);
+  }
 #endif
   ftglDestroyFont(ui->font_small);
   puglDestroy(ui->view);
