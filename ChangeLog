@@ -1,3 +1,8 @@
+2013-05-13 (0.6.0)  Robin Gareus <robin@gareus.org>
+* openGL details (multisampling etc)
+* various minor tweaks
+* use even minor version number (LV2 stable release)
+
 2013-11-19 (0.4.3)  Robin Gareus <robin@gareus.org>
 * explicit built-dep on openGL
 
