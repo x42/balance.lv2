@@ -21,6 +21,7 @@
 	doap:license <http://usefulinc.com/doap/licenses/gpl> ;
 	doap:maintainer <http://gareus.org/rgareus#me> ;
 	doap:name "Stereo Balance Control";
+	@VERSION@
 	lv2:optionalFeature lv2:hardRTCapable ;
 	lv2:requiredFeature urid:map ;
 	lv2:extensionData state:interface ;

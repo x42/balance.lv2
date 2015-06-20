@@ -9,6 +9,7 @@ PREFIX ?= /usr/local
 CFLAGS ?= $(OPTIMIZATIONS) -Wall
 LIBDIR ?= lib
 
+balance_VERSION?=$(shell git describe --tags HEAD 2>/dev/null | sed 's/-g.*$$//;s/^v//' || echo "LV2")
 ###############################################################################
 
 LV2DIR ?= $(PREFIX)/$(LIBDIR)/lv2
@@ -26,12 +27,19 @@ ifeq ($(UNAME),Darwin)
   IS_OSX=yes
   LV2LDFLAGS=-dynamiclib
   LIB_EXT=.dylib
+  EXTENDED_RE=-E
 else
   LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
   LIB_EXT=.so
+  EXTENDED_RE=-r
 endif
 
 targets=$(LV2NAME)$(LIB_EXT)
+
+###############################################################################
+# extract versions
+LV2VERSION=$(balance_VERSION)
+include git2lv2.mk
 
 # check for build-dependencies
 ifeq ($(shell pkg-config --exists lv2 || echo no), no)
@@ -121,7 +129,8 @@ ifeq ($(HAVE_UI), yes)
 endif
 
 $(LV2NAME).ttl: $(LV2NAME).ttl.in $(LV2NAME).ui.ttl.in
-	cat $(LV2NAME).ttl.in > $(LV2NAME).ttl
+	sed "s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
+		$(LV2NAME).ttl.in > $(LV2NAME).ttl
 ifeq ($(HAVE_UI), yes)
 	sed "s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/;" $(LV2NAME).ui.ttl.in >> $(LV2NAME).ttl
 endif
