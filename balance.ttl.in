@@ -45,9 +45,9 @@
 		lv2:index 1 ;
 		lv2:symbol "phaseL" ;
 		lv2:name "Phase Invert Left";
-		lv2:default 0.0 ;
-		lv2:minimum 0.0 ;
-		lv2:maximum 1.0 ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
 		lv2:portProperty lv2:integer, lv2:toggled;
 	] , [
 		a lv2:InputPort ,
@@ -55,9 +55,9 @@
 		lv2:index 2 ;
 		lv2:symbol "phaseR" ;
 		lv2:name "Phase Invert Right";
-		lv2:default 0.0 ;
-		lv2:minimum 0.0 ;
-		lv2:maximum 1.0 ;
+		lv2:default 0 ;
+		lv2:minimum 0 ;
+		lv2:maximum 1 ;
 		lv2:portProperty lv2:integer, lv2:toggled;
 	] , [
 		a lv2:InputPort ,
