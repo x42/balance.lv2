@@ -1,5 +1,6 @@
-2015-06-20 (0.6.1)  Robin Gareus <robin@gareus.org>
+2015-06-27 (0.6.1)  Robin Gareus <robin@gareus.org>
 * add lv2 version
+* specify integers as int in ttl.
 
 2015-05-13 (0.6.0)  Robin Gareus <robin@gareus.org>
 * openGL details (multisampling etc)
