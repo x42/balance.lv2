@@ -1,6 +1,4 @@
-/manifest.ttl
-/balance.ttl
-*.so
+/build
 *.blend1
 *.blend2
 

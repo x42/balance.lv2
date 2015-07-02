@@ -9,6 +9,10 @@ PREFIX ?= /usr/local
 CFLAGS ?= $(OPTIMIZATIONS) -Wall
 LIBDIR ?= lib
 
+STRIP=strip
+STRIPFLAGS=-s
+UISTRIPFLAGS=-s
+
 balance_VERSION?=$(shell git describe --tags HEAD 2>/dev/null | sed 's/-g.*$$//;s/^v//' || echo "LV2")
 ###############################################################################
 
@@ -17,24 +21,40 @@ LOADLIBES=-lm
 LV2NAME=balance
 LV2GUI=balanceUI
 BUNDLE=balance.lv2
+BUILDDIR=build/
+targets=
 
 override CFLAGS+=-fPIC -std=c99
 TX=textures/
 
 IS_OSX=
+PKG_GL_LIBS=
 UNAME=$(shell uname)
 ifeq ($(UNAME),Darwin)
   IS_OSX=yes
   LV2LDFLAGS=-dynamiclib
   LIB_EXT=.dylib
   EXTENDED_RE=-E
+  STRIPFLAGS=-u -r -arch all -s lv2syms
+  UISTRIPFLAGS=-u -r -arch all -s lv2uisyms
+  targets+=lv2syms lv2uisyms
 else
-  LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
-  LIB_EXT=.so
+  ifneq ($(XWIN),)
+    IS_WIN=yes
+    CC=$(XWIN)-gcc
+    STRIP=$(XWIN)-strip
+    LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic -Wl,--as-needed
+    LIB_EXT=.dll
+    override LDFLAGS += -static-libgcc -static-libstdc++
+  else
+    LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic
+    LIB_EXT=.so
+    PKG_GL_LIBS=glu gl
+  endif
   EXTENDED_RE=-r
 endif
 
-targets=$(LV2NAME)$(LIB_EXT)
+targets+=$(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
 ###############################################################################
 # extract versions
@@ -58,22 +78,23 @@ else
 endif
 
 
-ifeq ($(shell test -f $(FONTFILE) || echo no ), no)
-  $(warning "!!")
-  $(warning "!! UI font can not be found on this system")
-  $(warning "!! install fonts-freefont-ttf or set the FONTFILE variable to a ttf file")
-  $(warning "!! LV2 GUI will not be built")
-  $(warning "!!")
-  FONT_FOUND=no
-else
+ifeq ($(FONTFILE),verabd.h)
+  # TODO built-in font - see setBfree
   FONT_FOUND=yes
+else
+  ifeq ($(shell test -f $(FONTFILE) || echo no ), no)
+    $(warning "!!")
+    $(warning "!! UI font can not be found on this system")
+    $(warning "!! install fonts-freefont-ttf or set the FONTFILE variable to a ttf file")
+    $(warning "!! LV2 GUI will not be built")
+    $(warning "!!")
+    FONT_FOUND=no
+  else
+    FONT_FOUND=yes
+  endif
 endif
 
-ifeq ($(IS_OSX), yes)
-  HAVE_UI=$(shell pkg-config --exists ftgl && echo $(FONT_FOUND))
-else
-  HAVE_UI=$(shell pkg-config --exists glu gl ftgl && echo $(FONT_FOUND))
-endif
+HAVE_UI=$(shell pkg-config --exists $(PKG_GL_LIBS) ftgl && echo $(FONT_FOUND))
 
 LV2UIREQ=
 # check for LV2 idle thread -- requires 'lv2', atleast_version='1.4.6
@@ -98,16 +119,23 @@ ifeq ($(HAVE_UI), yes)
     UILIBS=pugl/pugl_osx.m -framework Cocoa -framework OpenGL
     UI_TYPE=CocoaUI
   else
-    UIDEPS+=pugl/pugl_x11.c
-    UICFLAGS+=`pkg-config --cflags glu gl`
-    UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu gl`
-    UI_TYPE=X11UI
+    ifneq ($(XWIN),)
+      UIDEPS+=pugl/pugl_win.cpp
+      UICFLAGS+=-DPTW32_STATIC_LIB
+      UILIBS=pugl/pugl_win.cpp -lws2_32 -lwinmm -lopengl32 -lglu32 -lgdi32 -lcomdlg32 -lpthread -lpthread -lusp10
+      UI_TYPE=WindowsUI
+    else
+      UIDEPS+=pugl/pugl_x11.c
+      UICFLAGS+=`pkg-config --cflags glu gl`
+      UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu gl`
+      UI_TYPE=X11UI
+    endif
   endif
   override CFLAGS+=`pkg-config --cflags ftgl` -DUINQHACK=Blc
   UILIBS+=`pkg-config --libs ftgl`
   override CFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
   override CFLAGS+=-DFONTSIZE=$(FONTSIZE)
-  targets+=$(LV2GUI)$(LIB_EXT)
+  targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
 else
   $(warning "!!")
   $(warning "!! openGL/GLU is not available - GUI disabled")
@@ -119,40 +147,57 @@ endif
 # build target definitions
 default: all
 
-all: manifest.ttl $(LV2NAME).ttl $(targets)
+all: $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(targets)
 
-manifest.ttl: manifest.ttl.in manifest.ui.ttl.in
+lv2syms:
+	echo "_lv2_descriptor" > lv2syms
+
+lv2uisyms:
+	echo "_lv2ui_descriptor" > lv2uisyms
+
+$(BUILDDIR)manifest.ttl: manifest.ttl.in manifest.ui.ttl.in
+	@mkdir -p $(BUILDDIR)
 	sed "s/@LV2NAME@/$(LV2NAME)/;s/@LIB_EXT@/$(LIB_EXT)/" \
-	  manifest.ttl.in > manifest.ttl
+	  manifest.ttl.in > $(BUILDDIR)manifest.ttl
 ifeq ($(HAVE_UI), yes)
-	sed "s/@LV2NAME@/$(LV2NAME)/;s/@LV2GUI@/$(LV2GUI)/;s/@LIB_EXT@/$(LIB_EXT)/;s/@UI_TYPE@/$(UI_TYPE)/" manifest.ui.ttl.in >> manifest.ttl
+	sed "s/@LV2NAME@/$(LV2NAME)/;s/@LV2GUI@/$(LV2GUI)/;s/@LIB_EXT@/$(LIB_EXT)/;s/@UI_TYPE@/$(UI_TYPE)/" \
+		manifest.ui.ttl.in >> $(BUILDDIR)manifest.ttl
 endif
 
-$(LV2NAME).ttl: $(LV2NAME).ttl.in $(LV2NAME).ui.ttl.in
+$(BUILDDIR)$(LV2NAME).ttl: $(LV2NAME).ttl.in $(LV2NAME).ui.ttl.in
+	@mkdir -p $(BUILDDIR)
 	sed "s/@VERSION@/lv2:microVersion $(LV2MIC) ;lv2:minorVersion $(LV2MIN) ;/g" \
-		$(LV2NAME).ttl.in > $(LV2NAME).ttl
+		$(LV2NAME).ttl.in > $(BUILDDIR)$(LV2NAME).ttl
 ifeq ($(HAVE_UI), yes)
-	sed "s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/;" $(LV2NAME).ui.ttl.in >> $(LV2NAME).ttl
+	sed "s/@UI_TYPE@/$(UI_TYPE)/;s/@UI_REQ@/$(LV2UIREQ)/;" \
+		$(LV2NAME).ui.ttl.in >> $(BUILDDIR)$(LV2NAME).ttl
 endif
 
-$(LV2NAME)$(LIB_EXT): balance.c uris.h
+$(BUILDDIR)$(LV2NAME)$(LIB_EXT): balance.c uris.h
+	@mkdir -p $(BUILDDIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) \
-	  -o $(LV2NAME)$(LIB_EXT) balance.c \
+	  -o $(BUILDDIR)$(LV2NAME)$(LIB_EXT) balance.c \
 	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
+	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
-$(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS)
+$(BUILDDIR)$(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS) $(FONTFILE)
+	@mkdir -p $(BUILDDIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(UICFLAGS) \
-		-o $(LV2GUI)$(LIB_EXT) ui.c \
+		-o $(BUILDDIR)$(LV2GUI)$(LIB_EXT) ui.c \
 		-shared $(LV2LDFLAGS) $(LDFLAGS) $(UILIBS)
+	$(STRIP) $(UISTRIPFLAGS) $(BUILDDIR)$(LV2GUI)$(LIB_EXT)
+
+verabd.h: VeraBd.ttf
+	xxd -i VeraBd.ttf > verabd.h
 
 # install/uninstall/clean target definitions
 
 install: all
 	install -d $(DESTDIR)$(LV2DIR)/$(BUNDLE)
-	install -m755 $(LV2NAME)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
-	install -m644 manifest.ttl $(LV2NAME).ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m755 $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m644 $(BUILDDIR)manifest.ttl $(BUILDDIR)$(LV2NAME).ttl $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 ifeq ($(HAVE_UI), yes)
-	install -m755 $(LV2GUI)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
+	install -m755 $(BUILDDIR)$(LV2GUI)$(LIB_EXT) $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 endif
 
 uninstall:
@@ -163,6 +208,7 @@ uninstall:
 	-rmdir $(DESTDIR)$(LV2DIR)/$(BUNDLE)
 
 clean:
-	rm -f manifest.ttl balance.ttl $(LV2NAME)$(LIB_EXT) $(LV2GUI)$(LIB_EXT)
+	rm -f $(BUILDDIR)manifest.ttl $(BUILDDIR)balance.ttl $(BUILDDIR)$(LV2NAME)$(LIB_EXT) $(BUILDDIR)$(LV2GUI)$(LIB_EXT) lv2syms lv2uisyms
+	-test -d $(BUILDDIR) && rmdir $(BUILDDIR) || true
 
 .PHONY: clean all install uninstall

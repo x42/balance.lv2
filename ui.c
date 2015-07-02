@@ -40,8 +40,12 @@
 
 #include <FTGL/ftgl.h>
 
-#ifndef FONTFILE
-#define FONTFILE "/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf"
+#ifdef BUILTINFONT
+#  include "verabd.h"
+#else
+#  ifndef FONTFILE
+#    define FONTFILE "/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf"
+#  endif
 #endif
 
 #ifndef FONTSIZE
@@ -1055,7 +1059,11 @@ onDisplay(PuglView* view)
     initMesh(ui->view);
     setupLight();
     initTextures(ui->view);
+#ifndef BUILTINFONT
     ui->font_small = ftglCreateBufferFont(FONTFILE);
+#else
+    ui->font_small = ftglCreateBufferFontMem(VeraBd_ttf, VeraBd_ttf_len);
+#endif
     ftglSetFontFaceSize(ui->font_small, FONTSIZE, 72);
     ftglSetFontCharMap(ui->font_small, ft_encoding_unicode);
   }
