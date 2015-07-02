@@ -1822,6 +1822,12 @@ static const LV2UI_Descriptor descriptor = {
   extension_data
 };
 
+#undef LV2_SYMBOL_EXPORT
+#ifdef _WIN32
+#    define LV2_SYMBOL_EXPORT __declspec(dllexport)
+#else
+#    define LV2_SYMBOL_EXPORT  __attribute__ ((visibility ("default")))
+#endif
 LV2_SYMBOL_EXPORT
 const LV2UI_Descriptor*
 lv2ui_descriptor(uint32_t index)
