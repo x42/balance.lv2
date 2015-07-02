@@ -1,12 +1,12 @@
 #!/usr/bin/make -f
 
 # these can be overridden using make variables. e.g.
-#   make CFLAGS=-O2
+#   make CXXFLAGS=-O2
 #   make install DESTDIR=$(CURDIR)/debian/balance_lv2 PREFIX=/usr
 #
 OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
 PREFIX ?= /usr/local
-CFLAGS ?= $(OPTIMIZATIONS) -Wall
+CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
 LIBDIR ?= lib
 
 STRIP=strip
@@ -24,7 +24,7 @@ BUNDLE=balance.lv2
 BUILDDIR=build/
 targets=
 
-override CFLAGS+=-fPIC -std=c99
+override CXXFLAGS+=-fPIC
 TX=textures/
 
 IS_OSX=
@@ -65,7 +65,7 @@ include git2lv2.mk
 ifeq ($(shell pkg-config --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
 else
-  override CFLAGS+=`pkg-config --cflags lv2`
+  override CXXFLAGS+=`pkg-config --cflags lv2`
 endif
 
 # optional UI
@@ -106,7 +106,7 @@ endif
 
 # check for lv2_atom_forge_object  new in 1.8.1 deprecates lv2_atom_forge_blank
 ifeq ($(shell pkg-config --atleast-version=1.8.1 lv2 && echo yes), yes)
-  override CFLAGS += -DHAVE_LV2_1_8
+  override CXXFLAGS += -DHAVE_LV2_1_8
 endif
 
 ifeq ($(HAVE_UI), yes)
@@ -114,27 +114,38 @@ ifeq ($(HAVE_UI), yes)
   UIDEPS+=$(TX)dial.c $(TX)background.c
   UIDEPS+=$(TX)mm_lr.c $(TX)mm_rl.c $(TX)mm_ll.c $(TX)mm_rr.c $(TX)mm_mono.c
   UIDEPS+=$(TX)btn_inv.c $(TX)btn_link.c
+
   ifeq ($(IS_OSX), yes)
     UIDEPS+=pugl/pugl_osx.m
     UILIBS=pugl/pugl_osx.m -framework Cocoa -framework OpenGL
     UI_TYPE=CocoaUI
+    UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a -lm -mmacosx-version-min=10.5 
   else
     ifneq ($(XWIN),)
       UIDEPS+=pugl/pugl_win.cpp
       UICFLAGS+=-DPTW32_STATIC_LIB
-      UILIBS=pugl/pugl_win.cpp -lws2_32 -lwinmm -lopengl32 -lglu32 -lgdi32 -lcomdlg32 -lpthread -lpthread -lusp10
+      UILIBS=pugl/pugl_win.cpp
+      UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a
+      UILIBS+=-lws2_32 -lwinmm -lopengl32 -lglu32 -lgdi32 -lcomdlg32 -lpthread
       UI_TYPE=WindowsUI
     else
       UIDEPS+=pugl/pugl_x11.c
       UICFLAGS+=`pkg-config --cflags glu gl`
-      UILIBS=pugl/pugl_x11.c -lX11 `pkg-config --libs glu gl`
+      UILIBS=pugl/pugl_x11.c -lX11
       UI_TYPE=X11UI
+      ifeq ($(STATICBUILD), yes)
+        UILIBS+=`pkg-config --libs glu`
+        UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a
+      else
+        UILIBS+=`pkg-config --libs glu ftgl`
+      endif
+      UICFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
     endif
   endif
-  override CFLAGS+=`pkg-config --cflags ftgl` -DUINQHACK=Blc
   UILIBS+=`pkg-config --libs ftgl`
-  override CFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
-  override CFLAGS+=-DFONTSIZE=$(FONTSIZE)
+  UICFLAGS+=`pkg-config --cflags freetype2` `pkg-config --cflags ftgl` -DHAVE_FTGL -DUINQHACK=Blc
+  UICFLAGS+=-DFONTSIZE=$(FONTSIZE)
+
   targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
 else
   $(warning "!!")
@@ -142,7 +153,6 @@ else
   $(warning "!! install glu-dev, ftgl-dev and fonts-freefont-ttf to build LV2 GUI")
   $(warning "!!")
 endif
-
 
 # build target definitions
 default: all
@@ -175,14 +185,14 @@ endif
 
 $(BUILDDIR)$(LV2NAME)$(LIB_EXT): balance.c uris.h
 	@mkdir -p $(BUILDDIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) \
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) \
 	  -o $(BUILDDIR)$(LV2NAME)$(LIB_EXT) balance.c \
 	  -shared $(LV2LDFLAGS) $(LDFLAGS) $(LOADLIBES)
 	$(STRIP) $(STRIPFLAGS) $(BUILDDIR)$(LV2NAME)$(LIB_EXT)
 
 $(BUILDDIR)$(LV2GUI)$(LIB_EXT): ui.c uris.h $(UIDEPS) $(FONTFILE)
 	@mkdir -p $(BUILDDIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(UICFLAGS) \
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(UICFLAGS) \
 		-o $(BUILDDIR)$(LV2GUI)$(LIB_EXT) ui.c \
 		-shared $(LV2LDFLAGS) $(LDFLAGS) $(UILIBS)
 	$(STRIP) $(UISTRIPFLAGS) $(BUILDDIR)$(LV2GUI)$(LIB_EXT)

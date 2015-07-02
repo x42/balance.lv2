@@ -39,6 +39,10 @@
 #endif
 
 #include <FTGL/ftgl.h>
+#ifdef __cplusplus
+using namespace FTGL;
+#define FTGL_RENDER_ALL RENDER_ALL
+#endif
 
 #ifdef BUILTINFONT
 #  include "verabd.h"
@@ -83,18 +87,6 @@
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 
 int mesh_initialized = 0;
-
-static inline int MOUSEIN(
-    const float X0, const float X1,
-    const float Y0, const float Y1,
-    const float mousex, const float mousey) {
-  return (
-      (mousex) >= (X0)
-   && (mousex) <= (X1)
-   && (mousey) >= (Y0)
-   && (mousey) <= (Y1)
-   );
-}
 
 /* total number of interactive objects */
 #define TOTAL_OBJ (16)
@@ -1754,7 +1746,7 @@ port_event(LV2UI_Handle handle,
   BLCui* ui = (BLCui*)handle;
 
   if ( format == 0 ) {
-    if (port_index < 0 || port_index >= TOTAL_OBJ) return;
+    if (port_index >= TOTAL_OBJ) return;
     float value =  *(float *)buffer;
     rmap_val(ui->view, port_index, value);
     puglPostRedisplay(ui->view);

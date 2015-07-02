@@ -654,7 +654,7 @@ instantiate(const LV2_Descriptor*     descriptor,
             const LV2_Feature* const* features)
 {
 	int i;
-	BalanceControl* self = (BalanceControl*)calloc(1, sizeof(BalanceControl));
+	BalanceControl* self = (BalanceControl*) calloc(1, sizeof(BalanceControl));
 	if (!self) return NULL;
 
   for (int i=0; features[i]; ++i) {
@@ -687,11 +687,11 @@ instantiate(const LV2_Descriptor*     descriptor,
 		self->c_dly[i] = 0;
 		self->r_ptr[i] = self->w_ptr[i] = 0;
 		memset(self->buffer[i], 0, sizeof(float) * MAXDELAY);
-		self->p_peak_inPi[i]  = malloc(self->peak_integrate_max * sizeof(double));
-		self->p_peak_outPi[i] = malloc(self->peak_integrate_max * sizeof(double));
+		self->p_peak_inPi[i]  = (double*) malloc(self->peak_integrate_max * sizeof(double));
+		self->p_peak_outPi[i] = (double*) malloc(self->peak_integrate_max * sizeof(double));
 	}
-	self->p_phase_outPi = malloc(self->phase_integrate_max * sizeof(double));
-	self->p_phase_outNi = malloc(self->phase_integrate_max * sizeof(double));
+	self->p_phase_outPi = (double*) malloc(self->phase_integrate_max * sizeof(double));
+	self->p_phase_outNi = (double*) malloc(self->phase_integrate_max * sizeof(double));
 
 	self->uicom_active = 0;
 	self->c_monomode = 0;
@@ -712,40 +712,40 @@ connect_port(LV2_Handle instance,
 
 	switch ((PortIndex)port) {
 	case BLC_TRIM:
-		self->trim = data;
+		self->trim = (float*) data;
 		break;
 	case BLC_PHASEL:
-		self->phase[C_LEFT] = data;
+		self->phase[C_LEFT] = (float*) data;
 		break;
 	case BLC_PHASER:
-		self->phase[C_RIGHT] = data;
+		self->phase[C_RIGHT] = (float*) data;
 		break;
 	case BLC_BALANCE:
-		self->balance = data;
+		self->balance = (float*) data;
 		break;
 	case BLC_UNIYGAIN:
-		self->unitygain = data;
+		self->unitygain = (float*) data;
 		break;
 	case BLC_MONOIZE:
-		self->monomode = data;
+		self->monomode = (float*) data;
 		break;
 	case BLC_DLYL:
-		self->delay[C_LEFT] = data;
+		self->delay[C_LEFT] = (float*) data;
 		break;
 	case BLC_DLYR:
-		self->delay[C_RIGHT] = data;
+		self->delay[C_RIGHT] = (float*) data;
 		break;
 	case BLC_INL:
-		self->input[C_LEFT] = data;
+		self->input[C_LEFT] = (float*) data;
 		break;
 	case BLC_INR:
-		self->input[C_RIGHT] = data;
+		self->input[C_RIGHT] = (float*) data;
 		break;
 	case BLC_OUTL:
-		self->output[C_LEFT] = data;
+		self->output[C_LEFT] = (float*) data;
 		break;
 	case BLC_OUTR:
-		self->output[C_RIGHT] = data;
+		self->output[C_RIGHT] = (float*) data;
 		break;
 	case BLC_UINOTIFY:
 		self->notify = (LV2_Atom_Sequence*)data;
