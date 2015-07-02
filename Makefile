@@ -120,12 +120,14 @@ ifeq ($(HAVE_UI), yes)
     UILIBS=pugl/pugl_osx.m -framework Cocoa -framework OpenGL
     UI_TYPE=CocoaUI
     UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a -lm -mmacosx-version-min=10.5 
+    UILIBS+=`pkg-config --libs zlib`
   else
     ifneq ($(XWIN),)
       UIDEPS+=pugl/pugl_win.cpp
       UICFLAGS+=-DPTW32_STATIC_LIB
       UILIBS=pugl/pugl_win.cpp
       UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a
+      UILIBS+=`pkg-config --libs zlib`
       UILIBS+=-lws2_32 -lwinmm -lopengl32 -lglu32 -lgdi32 -lcomdlg32 -lpthread
       UI_TYPE=WindowsUI
     else
@@ -136,6 +138,7 @@ ifeq ($(HAVE_UI), yes)
       ifeq ($(STATICBUILD), yes)
         UILIBS+=`pkg-config --libs glu`
         UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a
+        UILIBS+=`pkg-config --libs zlib`
       else
         UILIBS+=`pkg-config --libs glu ftgl`
       endif
