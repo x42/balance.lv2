@@ -4,6 +4,6 @@
 /build-deb.sh export-ignore
 
 /doc/screenshot* export-ignore
-/textures/fix_trigraphs.sh
+/textures/fix_trigraphs.sh export-ignore
 *.xcf export-ignore
 *.blend export-ignore
