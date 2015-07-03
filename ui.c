@@ -38,6 +38,49 @@
 #include <GL/glu.h>
 #endif
 
+#ifdef _WIN32
+#include <GL/glext.h>
+
+static int wgl_discovered = -1;
+static void (__stdcall *XWglGenerateMipmapEXT)(GLenum) = NULL;
+static void (__stdcall *XWglBindBuffer)(GLenum, GLuint) = NULL;
+static void (__stdcall *XWglGenBuffers)(GLsizei, GLuint*) = NULL;
+static void (__stdcall *XWglBufferData)(GLenum, GLsizeiptr, const GLvoid*, GLenum) = NULL;
+
+static int glext_func() {
+  if (wgl_discovered != -1) return wgl_discovered;
+  wgl_discovered = 0;
+  XWglGenerateMipmapEXT = (__stdcall void (*)(GLenum)) wglGetProcAddress("glGenerateMipmapEXT");
+  XWglBindBuffer = (__stdcall void (*)(GLenum, GLuint)) wglGetProcAddress("glBindBuffer");
+  XWglGenBuffers = (__stdcall void (*)(GLsizei, GLuint*)) wglGetProcAddress("glGenBuffers");
+  XWglBufferData = (__stdcall void (*)(GLenum, GLsizeiptr, const GLvoid*, GLenum)) wglGetProcAddress("glBufferData");
+
+  if (!XWglGenerateMipmapEXT || !XWglBindBuffer || !XWglGenBuffers || !XWglBufferData) {
+    wgl_discovered = 1;
+  }
+  return wgl_discovered;
+}
+
+static inline void MYglGenerateMipmapEXT(GLenum a) {
+  XWglGenerateMipmapEXT(a);
+}
+static inline void MYglBindBuffer(GLenum a, GLuint b) {
+  XWglBindBuffer(a,b);
+}
+static inline void MYglGenBuffers(GLsizei a, GLuint* b) {
+  XWglGenBuffers(a,b);
+}
+static inline void MYglBufferData(GLenum a, GLsizeiptr b, const GLvoid *c, GLenum d) {
+  XWglBufferData(a,b,c,d);
+}
+
+#define glGenerateMipmapEXT MYglGenerateMipmapEXT
+#define glBindBuffer MYglBindBuffer
+#define glGenBuffers MYglGenBuffers
+#define glBufferData MYglBufferData
+
+#endif
+
 #include <FTGL/ftgl.h>
 #ifdef __cplusplus
 using namespace FTGL;

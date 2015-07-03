@@ -41,7 +41,7 @@ ifeq ($(UNAME),Darwin)
 else
   ifneq ($(XWIN),)
     IS_WIN=yes
-    CC=$(XWIN)-gcc
+    CXX=$(XWIN)-g++
     STRIP=$(XWIN)-strip
     LV2LDFLAGS=-Wl,-Bstatic -Wl,-Bdynamic -Wl,--as-needed
     LIB_EXT=.dll
