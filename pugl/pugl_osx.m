@@ -151,6 +151,7 @@ __attribute__ ((visibility ("hidden")))
 	if (self) {
 		[[self openGLContext] makeCurrentContext];
 		[self reshape];
+		[NSOpenGLContext clearCurrentContext];
 	}
 	return self;
 }
@@ -168,11 +169,13 @@ __attribute__ ((visibility ("hidden")))
 		   deleting the view (?), so we must have reset puglview to NULL when
 		   this comes around.
 		*/
+		[[self openGLContext] makeCurrentContext];
 		if (puglview->reshapeFunc) {
 			puglview->reshapeFunc(puglview, width, height);
 		} else {
 			puglDefaultReshape(puglview, width, height);
 		}
+		[NSOpenGLContext clearCurrentContext];
 
 		puglview->width  = width;
 		puglview->height = height;
@@ -186,9 +189,11 @@ __attribute__ ((visibility ("hidden")))
 
 - (void) drawRect:(NSRect)rect
 {
+	[[self openGLContext] makeCurrentContext];
 	puglDisplay(puglview);
 	glFlush();
 	glSwapAPPLE();
+	[NSOpenGLContext clearCurrentContext];
 }
 
 static unsigned
@@ -399,6 +404,9 @@ puglCreate(PuglNativeWindow parent,
 		NSView* pview = (NSView*) parent;
 		[pview addSubview:impl->glview];
 		[impl->glview setHidden:NO];
+		if (!resizable) {
+			[impl->glview setAutoresizingMask:NSViewNotSizable];
+		}
 	} else {
 		NSString* titleString = [[NSString alloc]
 			initWithBytes:title
@@ -421,6 +429,9 @@ puglCreate(PuglNativeWindow parent,
 		[NSApp activateIgnoringOtherApps:YES];
 		[window makeFirstResponder:impl->glview];
 		[window makeKeyAndOrderFront:window];
+		if (!resizable) {
+			[window setStyleMask:[window styleMask] & ~NSResizableWindowMask];
+		}
 	}
 	return view;
 }
@@ -458,9 +469,12 @@ puglResize(PuglView* view)
 	int set_hints; // ignored
 	view->resize = false;
 	if (!view->resizeFunc) { return; }
+
+	[[view->impl->glview openGLContext] makeCurrentContext];
 	view->resizeFunc(view, &view->width, &view->height, &set_hints);
 	[view->impl->window setContentSize:NSMakeSize(view->width, view->height) ];
 	[view->impl->glview reshape];
+	[NSOpenGLContext clearCurrentContext];
 }
 
 void
@@ -493,4 +507,57 @@ PuglNativeWindow
 puglGetNativeWindow(PuglView* view)
 {
 	return (PuglNativeWindow)view->impl->glview;
+}
+
+int
+puglOpenFileDialog(PuglView* view, const char *title)
+{
+	NSOpenPanel *panel = [NSOpenPanel openPanel];
+	[panel setCanChooseFiles:YES];
+	[panel setCanChooseDirectories:NO];
+	[panel setAllowsMultipleSelection:NO];
+
+	if (title) {
+		NSString* titleString = [[NSString alloc]
+			initWithBytes:title
+			     	 length:strlen(title)
+			   	 encoding:NSUTF8StringEncoding];
+		[panel setTitle:titleString];
+	}
+
+	[panel beginWithCompletionHandler:^(NSInteger result) {
+		bool file_ok = false;
+		if (result == NSFileHandlingPanelOKButton) {
+			for (NSURL *url in [panel URLs]) {
+				if (![url isFileURL]) continue;
+				//NSLog(@"%@", url.path);
+				const char *fn= [url.path UTF8String];
+				file_ok = true;
+				if (view->fileSelectedFunc) {
+					view->fileSelectedFunc(view, fn);
+				}
+				break;
+			}
+		}
+
+		if (!file_ok && view->fileSelectedFunc) {
+			view->fileSelectedFunc(view, NULL);
+		}
+	}];
+
+	return 0;
+}
+
+bool
+rtk_osx_open_url (const char* url)
+{
+	NSString* strurl = [[NSString alloc] initWithUTF8String:url];
+	NSURL* nsurl = [[NSURL alloc] initWithString:strurl];
+
+	bool ret = [[NSWorkspace sharedWorkspace] openURL:nsurl];
+
+	[strurl release];
+	[nsurl release];
+
+	return ret;
 }
