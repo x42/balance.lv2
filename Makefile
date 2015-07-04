@@ -71,16 +71,17 @@ endif
 # optional UI
 ifeq ($(IS_OSX), yes)
   FONTFILE?=/usr/X11/lib/X11/fonts/TTF/VeraBd.ttf
-  FONTSIZE?=36
+  FONTSIZE?=32
 else
   FONTFILE?=/usr/share/fonts/truetype/freefont/FreeSansBold.ttf
-  FONTSIZE?=40
+  FONTSIZE?=36
 endif
 
 
 ifeq ($(FONTFILE),verabd.h)
   # TODO built-in font - see setBfree
   FONT_FOUND=yes
+  override FONTSIZE=32
 else
   ifeq ($(shell test -f $(FONTFILE) || echo no ), no)
     $(warning "!!")
