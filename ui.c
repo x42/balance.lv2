@@ -1755,6 +1755,14 @@ instantiate(const LV2UI_Descriptor*   descriptor,
     return NULL;
   }
 
+#ifdef _WIN32
+  if (glext_func()) {
+    fprintf(stderr, "B3Lv2UI error: System has insufficient GL capabilities\n");
+    free(ui);
+    return NULL;
+  }
+#endif
+
   *widget = (void*)puglGetNativeWindow(ui->view);
   forge_message_kv(ui, ui->uris.blc_meters_on, 0, 0);
 
