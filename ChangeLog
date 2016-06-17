@@ -1,3 +1,7 @@
+2016-06-17 (0.6.2)  Robin Gareus <robin@gareus.org>
+* clean up dist tar ball
+* support cross-compile build-system
+
 2015-06-27 (0.6.1)  Robin Gareus <robin@gareus.org>
 * add lv2 version
 * specify integers as int in ttl.
