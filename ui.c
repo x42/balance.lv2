@@ -1052,7 +1052,7 @@ onReshape(PuglView* view, int width, int height)
 
 static void updateLight(PuglView* view) {
   BLCui* ui = (BLCui*)puglGetHandle(view);
-  GLfloat light0_position[] = {  .5 + ui->rot[0]/90.0, -.5 - ui->rot[1]/90.0, -10.0, 0 };
+  GLfloat light0_position[] = {  (float)(.5 + ui->rot[0] / 90.0), (float)(-.5 - ui->rot[1] / 90.0), -10.f, 0.f };
   GLfloat spot_direction[]  = { -light0_position[0], -light0_position[1], -light0_position[2]};
 
   glLightfv(GL_LIGHT0, GL_POSITION, light0_position);

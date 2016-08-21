@@ -211,7 +211,7 @@ static void
 channel_map(BalanceControl *self, int mode,
 		const uint32_t start, const uint32_t end)
 {
-	int i;
+	uint32_t i;
 	switch (mode) {
 		case 1:
 			for (i=start; i < end; ++i) {
@@ -360,7 +360,7 @@ static void update_meter_cfg(BalanceControl* self, int key, float val) {
 static void
 run(LV2_Handle instance, uint32_t n_samples)
 {
-	int i,c;
+	uint32_t i,c;
 	BalanceControl* self = (BalanceControl*)instance;
 	const float balance = *self->balance;
 	const float trim = db_to_gain(*self->trim);
