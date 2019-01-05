@@ -9,6 +9,7 @@ PREFIX ?= /usr/local
 CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
 LIBDIR ?= lib
 
+PKG_CONFIG?=pkg-config
 STRIP?=strip
 STRIPFLAGS=-s
 UISTRIPFLAGS=-s
@@ -62,10 +63,10 @@ LV2VERSION=$(balance_VERSION)
 include git2lv2.mk
 
 # check for build-dependencies
-ifeq ($(shell pkg-config --exists lv2 || echo no), no)
+ifeq ($(shell $(PKG_CONFIG) --exists lv2 || echo no), no)
   $(error "LV2 SDK was not found")
 else
-  override CXXFLAGS+=`pkg-config --cflags lv2`
+  override CXXFLAGS+=`$(PKG_CONFIG) --cflags lv2`
 endif
 
 # optional UI
@@ -95,18 +96,18 @@ else
   endif
 endif
 
-HAVE_UI=$(shell pkg-config --exists $(PKG_GL_LIBS) ftgl && echo $(FONT_FOUND))
+HAVE_UI=$(shell $(PKG_CONFIG) --exists $(PKG_GL_LIBS) ftgl && echo $(FONT_FOUND))
 
 LV2UIREQ=
 # check for LV2 idle thread -- requires 'lv2', atleast_version='1.4.6
-ifeq ($(shell pkg-config --atleast-version=1.4.6 lv2 || echo no), no)
+ifeq ($(shell $(PKG_CONFIG) --atleast-version=1.4.6 lv2 || echo no), no)
   UICFLAGS+=-DOLD_SUIL
 else
 	LV2UIREQ=lv2:requiredFeature ui:idleInterface; lv2:extensionData ui:idleInterface;
 endif
 
 # check for lv2_atom_forge_object  new in 1.8.1 deprecates lv2_atom_forge_blank
-ifeq ($(shell pkg-config --atleast-version=1.8.1 lv2 && echo yes), yes)
+ifeq ($(shell $(PKG_CONFIG) --atleast-version=1.8.1 lv2 && echo yes), yes)
   override CXXFLAGS += -DHAVE_LV2_1_8
 endif
 
@@ -120,34 +121,34 @@ ifeq ($(HAVE_UI), yes)
     UIDEPS+=pugl/pugl_osx.m
     UILIBS=pugl/pugl_osx.m -framework Cocoa -framework OpenGL
     UI_TYPE=CocoaUI
-    UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a -lm -mmacosx-version-min=10.5 
-    UILIBS+=`pkg-config --libs zlib`
+    UILIBS+=`$(PKG_CONFIG) --variable=libdir ftgl`/libftgl.a `$(PKG_CONFIG) --variable=libdir ftgl`/libfreetype.a -lm -mmacosx-version-min=10.5 
+    UILIBS+=`$(PKG_CONFIG) --libs zlib`
   else
     ifneq ($(XWIN),)
       UIDEPS+=pugl/pugl_win.cpp
       UICFLAGS+=-DPTW32_STATIC_LIB
       UILIBS=pugl/pugl_win.cpp
-      UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a
-      UILIBS+=`pkg-config --libs zlib`
+      UILIBS+=`$(PKG_CONFIG) --variable=libdir ftgl`/libftgl.a `$(PKG_CONFIG) --variable=libdir ftgl`/libfreetype.a
+      UILIBS+=`$(PKG_CONFIG) --libs zlib`
       UILIBS+=-lws2_32 -lwinmm -lopengl32 -lglu32 -lgdi32 -lcomdlg32 -lpthread
       UI_TYPE=WindowsUI
     else
       UIDEPS+=pugl/pugl_x11.c
-      UICFLAGS+=`pkg-config --cflags glu gl`
+      UICFLAGS+=`$(PKG_CONFIG) --cflags glu gl`
       UILIBS=pugl/pugl_x11.c -lX11
       UI_TYPE=X11UI
       ifeq ($(STATICBUILD), yes)
-        UILIBS+=`pkg-config --libs glu`
-        UILIBS+=`pkg-config --variable=libdir ftgl`/libftgl.a `pkg-config --variable=libdir ftgl`/libfreetype.a
-        UILIBS+=`pkg-config --libs zlib`
+        UILIBS+=`$(PKG_CONFIG) --libs glu`
+        UILIBS+=`$(PKG_CONFIG) --variable=libdir ftgl`/libftgl.a `$(PKG_CONFIG) --variable=libdir ftgl`/libfreetype.a
+        UILIBS+=`$(PKG_CONFIG) --libs zlib`
       else
-        UILIBS+=`pkg-config --libs glu ftgl`
+        UILIBS+=`$(PKG_CONFIG) --libs glu ftgl`
       endif
       UICFLAGS+=-DFONTFILE=\"$(FONTFILE)\"
     endif
   endif
-  UILIBS+=`pkg-config --libs ftgl`
-  UICFLAGS+=`pkg-config --cflags freetype2` `pkg-config --cflags ftgl` -DHAVE_FTGL -DUINQHACK=Blc
+  UILIBS+=`$(PKG_CONFIG) --libs ftgl`
+  UICFLAGS+=`$(PKG_CONFIG) --cflags freetype2` `$(PKG_CONFIG) --cflags ftgl` -DHAVE_FTGL -DUINQHACK=Blc
   UICFLAGS+=-DFONTSIZE=$(FONTSIZE)
 
   targets+=$(BUILDDIR)$(LV2GUI)$(LIB_EXT)
