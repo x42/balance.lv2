@@ -4,10 +4,9 @@
 #   make CXXFLAGS=-O2
 #   make install DESTDIR=$(CURDIR)/debian/balance_lv2 PREFIX=/usr
 #
-OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only
+OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
 PREFIX ?= /usr/local
 CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
-LIBDIR ?= lib
 
 PKG_CONFIG?=pkg-config
 STRIP?=strip
@@ -17,7 +16,7 @@ UISTRIPFLAGS=-s
 balance_VERSION?=$(shell git describe --tags HEAD 2>/dev/null | sed 's/-g.*$$//;s/^v//' || echo "LV2")
 ###############################################################################
 
-LV2DIR ?= $(PREFIX)/$(LIBDIR)/lv2
+LV2DIR ?= $(PREFIX)/lib/lv2
 LOADLIBES=-lm
 LV2NAME=balance
 LV2GUI=balanceUI
@@ -25,8 +24,11 @@ BUNDLE=balance.lv2
 BUILDDIR=build/
 targets=
 
-override CXXFLAGS+=-fPIC
 TX=textures/
+
+ifeq ($(XWIN),)
+  override CXXFLAGS += -fPIC -fvisibility=hidden
+endif
 
 IS_OSX=
 PKG_GL_LIBS=
