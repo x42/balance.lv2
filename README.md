@@ -23,7 +23,7 @@ The optional UI depends on libftgl-dev, libglu-dev, libx11-dev and the
 fonts-freefont-ttf (or any other .ttf font).
 
 ```bash
-  git clone git://github.com/x42/balance.lv2.git
+  git clone https://github.com/x42/balance.lv2.git
   cd balance.lv2
   make
   sudo make install PREFIX=/usr
