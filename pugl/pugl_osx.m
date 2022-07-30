@@ -149,6 +149,10 @@ __attribute__ ((visibility ("hidden")))
 	}
 
 	if (self) {
+#if defined(MAC_OS_X_VERSION_10_15) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_15
+		/* macOS 10.5 switched the default to YES (compile time) */
+		[self setWantsBestResolutionOpenGLSurface:NO];
+#endif
 		[[self openGLContext] makeCurrentContext];
 		[self reshape];
 		[NSOpenGLContext clearCurrentContext];
@@ -158,6 +162,7 @@ __attribute__ ((visibility ("hidden")))
 
 - (void) reshape
 {
+	[super reshape];
 	[[self openGLContext] update];
 
 	NSRect bounds = [self bounds];
