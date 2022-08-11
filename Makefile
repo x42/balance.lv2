@@ -123,7 +123,7 @@ ifeq ($(HAVE_UI), yes)
     UIDEPS+=pugl/pugl_osx.m
     UILIBS=pugl/pugl_osx.m -framework Cocoa -framework OpenGL
     UI_TYPE=CocoaUI
-    UILIBS+=`$(PKG_CONFIG) --variable=libdir ftgl`/libftgl.a `$(PKG_CONFIG) --variable=libdir ftgl`/libfreetype.a -lm -mmacosx-version-min=10.5 
+    UILIBS+=`$(PKG_CONFIG) --variable=libdir ftgl`/libftgl.a `$(PKG_CONFIG) --variable=libdir ftgl`/libfreetype.a -lm
     UILIBS+=`$(PKG_CONFIG) --libs zlib`
   else
     ifneq ($(XWIN),)
