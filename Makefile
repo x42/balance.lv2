@@ -4,9 +4,7 @@
 #   make CXXFLAGS=-O2
 #   make install DESTDIR=$(CURDIR)/debian/balance_lv2 PREFIX=/usr
 #
-OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
 PREFIX ?= /usr/local
-CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
 
 PKG_CONFIG?=pkg-config
 STRIP?=strip
@@ -14,7 +12,26 @@ STRIPFLAGS=-s
 UISTRIPFLAGS=-s
 
 balance_VERSION?=$(shell git describe --tags HEAD 2>/dev/null | sed 's/-g.*$$//;s/^v//' || echo "LV2")
+
 ###############################################################################
+
+MACHINE=$(shell uname -m)
+ifneq (,$(findstring x64,$(MACHINE)))
+  HAVE_SSE=yes
+endif
+ifneq (,$(findstring 86,$(MACHINE)))
+  HAVE_SSE=yes
+endif
+
+ifeq ($(HAVE_SSE),yes)
+  OPTIMIZATIONS ?= -msse -msse2 -mfpmath=sse -ffast-math -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+else
+  OPTIMIZATIONS ?= -fomit-frame-pointer -O3 -fno-finite-math-only -DNDEBUG
+endif
+
+###############################################################################
+CXXFLAGS ?= $(OPTIMIZATIONS) -Wall
+
 
 LV2DIR ?= $(PREFIX)/lib/lv2
 LOADLIBES=-lm
