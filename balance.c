@@ -22,8 +22,14 @@
 #include <math.h>
 #include <assert.h>
 
-#include "lv2/lv2plug.in/ns/lv2core/lv2.h"
-#include "lv2/lv2plug.in/ns/ext/state/state.h"
+#ifdef HAVE_LV2_1_18_6
+#include <lv2/core/lv2.h>
+#include <lv2/state/state.h>
+#else
+#include <lv2/lv2plug.in/ns/lv2core/lv2.h>
+#include <lv2/lv2plug.in/ns/ext/state/state.h>
+#endif
+
 #include "uris.h"
 
 #define MAXDELAY (2001)
