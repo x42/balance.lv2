@@ -56,13 +56,13 @@ Left/Right signal level balance control.
 *Gain Mode* defines the behaviour of the *Balance* knob.
 
 * classic "Balance" mode.
-  * Attenuate one channels at a time; no positive gain.
+  * Attenuate one channel at a time; no positive gain.
   * 100% left: mute the right channel, left channel is untouched.
   *  50% left: attenuate the right channel by -6dB (signal * 0.5), left channel is untouched.
   *  29% left: attenuate the right channel by -3dB (signal * 0.71), left channel is untouched.
   *  50% right: attenuate the left channel by -6dB (signal * 0.5), right channel is untouched.
   * ...
-* "Unity Gain - Equal Amplitude" mode
+* "Unity Gain - Maintain Amplitude" mode
   * behaviour of the attenuated channel is identical to "Balance" mode.
     Gain of the previously untouched channel is raised so that the mono sum of both retains equal amplitude.
   * 100% right: -inf dB on left channel (signal * 0.0), +6dB on right channel (signal * 2.0).
