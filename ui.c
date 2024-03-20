@@ -137,7 +137,10 @@ using namespace FTGL;
 #define MIN(a,b) ( (a) < (b) ? (a) : (b) )
 #define MAX(a,b) ( (a) > (b) ? (a) : (b) )
 
-int mesh_initialized = 0;
+static int mesh_initialized = 0;
+
+static pthread_mutex_t instance_lock  = PTHREAD_MUTEX_INITIALIZER;
+static unsigned int    instance_count = 0;
 
 /* total number of interactive objects */
 #define TOTAL_OBJ (16)
@@ -1774,6 +1777,10 @@ instantiate(const LV2UI_Descriptor*   descriptor,
   *widget = (void*)puglGetNativeWindow(ui->view);
   forge_message_kv(ui, ui->uris.blc_meters_on, 0, 0);
 
+  pthread_mutex_lock (&instance_lock);
+  instance_count++;
+  pthread_mutex_unlock (&instance_lock);
+
   return ui;
 }
 
@@ -1788,7 +1795,15 @@ cleanup(LV2UI_Handle handle)
     pthread_join(ui->thread, NULL);
   }
 #endif
-  ftglDestroyFont(ui->font_small);
+  pthread_mutex_lock (&instance_lock);
+  if (instance_count > 0) {
+    --instance_count;
+  }
+  if (instance_count == 0) {
+    ftglDestroyFont(ui->font_small);
+  }
+  pthread_mutex_unlock (&instance_lock);
+
   puglDestroy(ui->view);
   free(ui->vbo);
   free(ui->vinx);
