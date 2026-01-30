@@ -489,8 +489,17 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 
 	/* process audio -- delayline + balance & gain */
-	process_channel(self, gain_left * trim,  C_LEFT, n_samples);
-	process_channel(self, gain_right * trim, C_RIGHT, n_samples);
+	if (self->input[0] == self->output[0]) {
+		/* possibly mono to stereo, left-channel is in-place
+		 * first process in (= left-out) -> right
+		 */
+		process_channel(self, gain_right * trim, C_RIGHT, n_samples);
+		process_channel(self, gain_left * trim,  C_LEFT, n_samples);
+	} else {
+		process_channel(self, gain_left * trim,  C_LEFT, n_samples);
+		process_channel(self, gain_right * trim, C_RIGHT, n_samples);
+	}
+
 
 	/* swap/assign channels */
 	uint32_t pos = 0;
